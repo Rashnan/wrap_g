@@ -1,0 +1,41 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "wrap_g debug and build",
+            "command": "g++",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                // "-mwindows",
+                // "-fcoroutines",
+                // "-fconcepts",
+                // "-fconcepts-diagnostics-depth=2",
+                "-std=c++2a",
+                "index.cpp",
+                "-o",
+                "index.exe",
+                "-Wall",
+                "-Wextra",
+                "-lglfw3",
+                "-lglad",
+                "-lopengl32",
+                "-lgdi32",
+                // last first
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+        }
+    ]
+}
