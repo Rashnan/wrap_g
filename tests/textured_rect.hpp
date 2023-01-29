@@ -2,6 +2,7 @@
 #define WRAP_G_TESTS_TEXTURED_RECT
 
 #include <iostream>
+#include <future>
 
 #include "../src/utils.hpp"
 #include "../src/wrap_g.hpp"
@@ -58,16 +59,23 @@ void create_textured_rect() noexcept
     // create a vao to store vertices and a shader program that defines how the vertices appear on the window
     auto vao = win.create_vao();
     auto prog = win.create_program();
+    auto tex1 = win.create_texture(GL_TEXTURE_2D);
+    auto tex2 = win.create_texture(GL_TEXTURE_2D);
 
-    // creates a rectangle like below in compile time
+    // creates a 3d rectangle like below in compile time
     //-         | *********** | (end)
     //-         | *********** |
     //-         | *********** |
     //-         | *********** |
     //-         | *********** |
     //- (start) | *********** |
-    constexpr auto verts = utils::gen_rect_face(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
+    constexpr auto verts = utils::gen_rect_face<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
 
+    // creates a 2d coord within the texture map for each vertex
+    constexpr auto tex_coords = utils::gen_rect_face<2>(glm::vec2{0.0f}, glm::vec2{1.0f});
+
+    // mapping the vertices to faces
+    // each uvec3 corresponds to a triangle face
     constexpr auto indices = std::array{
         glm::uvec3{
             utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
@@ -87,7 +95,10 @@ void create_textured_rect() noexcept
     // and the buffer to get this attribute from is the buffer at binding position 0 (first)
     // and at an offset 0 (default sixth) from the start of the buffer pointer and is not
     // normalized (default fifth)
+    // this parameter is the position of each vertex
     vao.define_attrib(0, 0, 3, GL_FLOAT);
+    // this paremter is the texture coordinate for each vertex
+    vao.define_attrib(1, 1, 2, GL_FLOAT);
 
     // creates an array buffer at binding position 0 (first) of size verts.size() * sizeof(glm::vec3) (second)
     // and the pointer to it is verts.cbegin() (third) and the flag enabled is GL_MAP_READ_BIT (fourth)
@@ -102,7 +113,10 @@ void create_textured_rect() noexcept
     // * as this is often known at compile time.
     // * stride can be manually set using a GLsizei argument between the data pointer and the flag
     // ! be careful as this may cause headaches if set incorrectly
+    // creates the buffer for the vertex positions
     vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.cbegin(), GL_MAP_READ_BIT);
+    // creates the buffer for the texture coordinates
+    vao.create_array_buffer<const glm::vec2>(1, tex_coords.size() * sizeof(glm::vec2), tex_coords.cbegin(), GL_MAP_READ_BIT);
 
     // creates an element array buffer of size indices.size() * sizeof(glm::uvec3) (first)
     // and the pointer to it is indices.cbegin() (second) and the flag enabled is GL_MAP_READ_BIT (third)
@@ -120,24 +134,78 @@ void create_textured_rect() noexcept
     // TODO: update
     vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.cbegin(), GL_MAP_READ_BIT);
 
-    // extremely basic shader code written in glsl
-    const char *vert_src = "\n#version 450 core\n\nlayout (location = 0) in vec3 pos;\n\nvoid main() {\n    gl_Position = vec4(pos.xyz, 1.0);\n}\0",
-                *frag_src= "\n#version 450 core\n\nout vec4 frag_col;\n\nuniform vec4 col;\n\nvoid main()\n{\n    frag_col = col;\n}\0";
-
     // quick method to compile and link provided shader files
     // multiple vertex and fragment shaders can be provided and other types of shaders as well
     // template argument tells whether all provided const char* (the vert_src and frag_src) is 
     // a string containing the shader source or a relative path to the file containing the src
     // if true then uses utils to open and read file
     // if false uses string as glsl code directly
-    bool success = prog.quick<false>({
-        {GL_VERTEX_SHADER, {vert_src}},
-        {GL_FRAGMENT_SHADER, {frag_src}}
+    bool success = prog.quick<true>({
+        {GL_VERTEX_SHADER, {"tests/res/shaders/textured_rect.vs"}},
+        {GL_FRAGMENT_SHADER, {"tests/res/shaders/textured_rect.fs"}}
     });
-
+    
     if (!success)
         return;
     
+    // rst -> xyz
+    tex1.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    tex1.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    tex1.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    tex1.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    const char *img_path_1 = "tests/res/images/wall.jpg";
+    
+    utils::stb_image img_loader;    
+    img_loader.load_file(img_path_1);
+
+    if (img_loader.data() == nullptr) {
+        std::cout << "[main] Error: Failed to load image from " << img_path_1 << "\n";
+    }
+    else {
+        // jpg -> GL_RGB
+        // png -> GL_RGBA
+        // refer to https://docs.gl/gl4/glTexStorage2D for internal format
+        tex1.define_texture2d(1, GL_RGB4, img_loader.width(), img_loader.height());
+        tex1.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGB, GL_UNSIGNED_BYTE, img_loader.data());
+        tex1.gen_mipmap();
+    }
+
+    tex1.bind_unit(0);
+    // ensure sampler2D uniform is provided as an int and is the same as 
+    // the unit the texture is bound to.
+    prog.set_uniform<int>(prog.uniform_location("tex1"), 0);
+
+    tex2.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    tex2.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    tex2.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    tex2.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    const char *img_path_2 = "tests/res/images/awesomeface.png";
+    
+    img_loader.load_file(img_path_2, true);
+
+    if (img_loader.data() == nullptr) {
+        std::cout << "[main] Error: Failed to load image from " << img_path_2 << "\n";
+    }
+    else {
+        // jpg -> GL_RGB
+        // png -> GL_RGBA
+        // refer to https://docs.gl/gl4/glTexStorage2D for internal format
+        tex2.define_texture2d(1, GL_RGBA4, img_loader.width(), img_loader.height());
+        tex2.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader.data());
+        tex2.gen_mipmap();
+    }
+
+    tex2.bind_unit(1);
+    // ensure sampler2D uniform is provided as an int and is the same as 
+    // the unit the texture is bound to.
+    prog.set_uniform<int>(prog.uniform_location("tex2"), 1);
+
+    float tex_mix = 0.5f, tex_mix_sens = 0.01f;
+    int tex_mix_loc = prog.uniform_location("tex_mix");
+    prog.set_uniform<float>(tex_mix_loc, tex_mix);
+
     // gives a glm::vec4 containing the rgba color values
     constexpr auto blue = utils::hex("#111b24");
     constexpr auto yellow = utils::hex("#d2cb7f");
@@ -153,13 +221,18 @@ void create_textured_rect() noexcept
 
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
 
-    double total_time=0.;
-    double last_frame=0.;
-    int n=1;
+    double total_time = 0.0;
+    double last_frame = 0.0;
+    int n = 1;
 
     while (!win.get_should_close())
     {
         watch.start();
+
+        if (glfwGetKey(win.win(), GLFW_KEY_S) == GLFW_PRESS) {
+            tex_mix += (glfwGetKey(win.win(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens;
+            prog.set_uniform<float>(tex_mix_loc, tex_mix);
+        }
 
         // set the color that will be used when glClear is called on the color buffer bit
         glClearColor(blue.r, blue.g, blue.b, blue.a);

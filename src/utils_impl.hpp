@@ -913,23 +913,46 @@ namespace utils
         std::cout << fn(ptr) << "\n";
     }
 
-    constexpr std::array<glm::vec3, 3> gen_tri_face(const glm::vec3 &start, const glm::vec3 &end) noexcept
+    template<size_t Dimensions>
+    requires (Dimensions > 1 && Dimensions < 4)
+    constexpr std::array<glm::vec<Dimensions, float>, 3> gen_tri_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept
     {
-        return {
-            glm::vec3{start.x, start.y, start.z},
-            glm::vec3{start.x + (end.x - start.x) / 2.0, end.y, start.z + (end.z - start.z) / 2.0},
-            glm::vec3{end.x, start.y, end.z},
-        };
+        if constexpr (Dimensions == 2) {
+            return {
+                glm::vec2{start.x, start.y},
+                glm::vec2{start.x + (end.x - start.x) / 2.0, end.y},
+                glm::vec2{end.x, start.y},
+            };
+        }
+        if constexpr (Dimensions == 3) {
+            return {
+                glm::vec3{start.x, start.y, start.z},
+                glm::vec3{start.x + (end.x - start.x) / 2.0, end.y, start.z + (end.z - start.z) / 2.0},
+                glm::vec3{end.x, start.y, end.z},
+            };
+        }
     }
 
-    constexpr std::array<glm::vec3, 4> gen_rect_face(const glm::vec3 &start, const glm::vec3 &end) noexcept
+    template<size_t Dimensions>
+    requires (Dimensions > 1 && Dimensions < 4)
+    constexpr std::array<glm::vec<Dimensions, float>, 4> gen_rect_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept
     {
-        return {
-            glm::vec3{start.x, start.y, start.z},
-            glm::vec3{start.x, end.y, start.z},
-            glm::vec3{end.x, end.y, end.z},
-            glm::vec3{end.x, start.y, end.z},
-        };
+        if constexpr (Dimensions == 2) {
+            return {
+                glm::vec2{start.x, start.y},
+                glm::vec2{start.x, end.y},
+                glm::vec2{end.x, end.y},
+                glm::vec2{end.x, start.y},
+            };
+        }
+        if constexpr (Dimensions == 3) {
+            return {
+                glm::vec3{start.x, start.y, start.z},
+                glm::vec3{start.x, end.y, start.z},
+                glm::vec3{end.x, end.y, end.z},
+                glm::vec3{end.x, start.y, end.z},
+            };
+        }
     }
 
 } // namespace utils

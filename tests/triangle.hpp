@@ -59,14 +59,14 @@ void create_triangle() noexcept
     auto vao = win.create_vao();
     auto prog = win.create_program();
 
-    // creates a triangle like below
+    // creates a 3d triangle like below
     //-         |      *      | (end)
     //-         |     ***     |
     //-         |    *****    |
     //-         |   *******   |
     //-         |  *********  |
     //- (start) | *********** |
-    constexpr auto verts = utils::gen_tri_face(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
+    constexpr auto verts = utils::gen_tri_face<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
 
     // define_attrib defines an attribute in the shader and enables it
     // (**) inside brackets is paramter number
@@ -90,20 +90,29 @@ void create_triangle() noexcept
     // ! be careful as this may cause headaches if set incorrectly
     vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.cbegin(), GL_MAP_READ_BIT);
 
-    // extremely basic shader code written in glsl
-    const char *vert_src = "\n#version 450 core\n\nlayout (location = 0) in vec3 pos;\n\nvoid main() {\n    gl_Position = vec4(pos.xyz, 1.0);\n}\0",
-                *frag_src= "\n#version 450 core\n\nout vec4 frag_col;\n\nuniform vec4 col;\n\nvoid main()\n{\n    frag_col = col;\n}\0";
-
-    // quick method to compile and link provided shader files
+    // The quick method is used to compile and link provided shader files
     // multiple vertex and fragment shaders can be provided and other types of shaders as well
     // template argument tells whether all provided const char* (the vert_src and frag_src) is 
     // a string containing the shader source or a relative path to the file containing the src
     // if true then uses utils to open and read file
     // if false uses string as glsl code directly
+#define USE_SHADER_FILE true
+
+#if USE_SHADER_FILE
+    bool success = prog.quick<true>({
+        {GL_VERTEX_SHADER, {"tests/res/shaders/triangle.vs"}},
+        {GL_FRAGMENT_SHADER, {"tests/res/shaders/triangle.fs"}}
+    });
+#else
+    // extremely basic shader code written in glsl
+    const char *vert_src = "\n#version 450 core\n\nlayout (location = 0) in vec3 pos;\n\nvoid main() {\n    gl_Position = vec4(pos.xyz, 1.0);\n}\0",
+                *frag_src= "\n#version 450 core\n\nout vec4 frag_col;\n\nuniform vec4 col;\n\nvoid main()\n{\n    frag_col = col;\n}\0";
+
     bool success = prog.quick<false>({
         {GL_VERTEX_SHADER, {vert_src}},
         {GL_FRAGMENT_SHADER, {frag_src}}
     });
+#endif
 
     if (!success)
         return;
@@ -123,9 +132,9 @@ void create_triangle() noexcept
 
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
 
-    double total_time=0.;
-    double last_frame=0.;
-    int n=1;
+    double total_time = 0.0;
+    double last_frame = 0.0;
+    int n = 1;
 
     while (!win.get_should_close())
     {
@@ -143,7 +152,7 @@ void create_triangle() noexcept
         // bind vao and shader program before issuing draw call
         vao.bind();
         prog.use();
-        
+
         // to draw from purely the vertices in the array buffer use this
         // start from vertex 0 and go for 3 vertices (verts.size())
         glDrawArrays(GL_TRIANGLES, 0, verts.size());

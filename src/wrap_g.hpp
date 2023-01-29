@@ -756,7 +756,8 @@ namespace wrap_g
          *
          * @param levels The maximum amount of levels.
          * @param internal_format The internal format of data. Ex: GL_RGBA4 to use 4 bytes to store red
-         * green and blue each.
+         * green and blue each. Refer to https://docs.gl/gl4/glTexStorage2D
+         * 
          * @param width The width of the texture.
          * @param height the height of the texture.
          */

@@ -249,7 +249,7 @@ namespace utils
 
     std::string read_file(const char *path) noexcept;
     std::vector<unsigned char> read_file_bytes(const char *path) noexcept;
-
+    
     template<size_t Width, size_t Height, typename T>
     requires std::swappable<T> && (Width > 0) && (Height > 0)
     void flip_array2d(T *ptr, bool horizontally = false, bool vertically = false) noexcept;
@@ -297,7 +297,7 @@ namespace utils
 
     /**
      * @brief Creates the vertices for a triangle like below in compile time. Sort of creates a rect face with the two
-     * 3d points given and draws a triangle in the middle of that face.
+     * points given and draws a triangle in the middle of that face.
      *          |      *      | (end)
      *          |     ***     |
      *          |    *****    |
@@ -309,7 +309,9 @@ namespace utils
      * @param end the top right position
      * @return constexpr std::array<glm::vec3, 3> 
      */
-    constexpr std::array<glm::vec3, 3> gen_tri_face(const glm::vec3 &start, const glm::vec3 &end) noexcept;
+    template<size_t Dimensions = 3>
+    requires (Dimensions > 1 && Dimensions < 4)
+    constexpr std::array<glm::vec<Dimensions, float> , 3> gen_tri_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept;
 
     enum class GEN_RECT_FACE_VERTS {
         BOTTOM_LEFT,
@@ -319,7 +321,7 @@ namespace utils
     };
 
     /**
-     * @brief Creates the vertices for a rectangle face using the two given 3d points.
+     * @brief Creates the vertices for a rectangle face using the two given points.
      * * NOTE: Needs an element array buffer whem generating the rectangle. 
      * creates a rectangle like below in compile time.
      *          | *********** | (end)
@@ -333,7 +335,9 @@ namespace utils
      * @param end the top right point
      * @return constexpr std::array<glm::vec3, 4> 
      */
-    constexpr std::array<glm::vec3, 4> gen_rect_face(const glm::vec3 &start, const glm::vec3 &end) noexcept;
+    template<size_t Dimensions = 3>
+    requires (Dimensions > 1 && Dimensions < 4)
+    constexpr std::array<glm::vec<Dimensions, float>, 4> gen_rect_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept;
 
 } // namespace utils
 
