@@ -65,7 +65,7 @@ void create_textured_rect() noexcept
     const char *vert_path = "tests/res/shaders/textured_rect.vs";
     const char *frag_path = "tests/res/shaders/textured_rect.fs";
 
-#if WRAP_G_MULTITHREADING
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
     ////
     // background resource fetching
 
@@ -193,7 +193,7 @@ void create_textured_rect() noexcept
     tex2.bind_unit(1);
     
     // both branches do essentially the same thing
-#if !WRAP_G_MULTITHREADING
+#if !WRAP_G_BACKGROUND_RESOURCE_LOAD
     // quick method to compile and link provided shader files
     // multiple vertex and fragment shaders can be provided and other types of shaders as well
     // template argument tells whether all provided const char* (the vert_src and frag_src) is 
@@ -258,7 +258,7 @@ void create_textured_rect() noexcept
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
 
-#if WRAP_G_MULTITHREADING
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
     ////
     // Resource Fetching Threads Done
 
@@ -292,7 +292,7 @@ void create_textured_rect() noexcept
         tex1.gen_mipmap();
     }
 
-#if WRAP_G_MULTITHREADING
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
     // wait for thread to load img just in case it is not done
     load_img_2.wait();
 #else
@@ -367,7 +367,7 @@ void create_textured_rect() noexcept
 
         // swap the buffers to show the newly drawn frame
         win.swap_buffers();
-        
+
         // get events such as mouse input
         glfwPollEvents();
     }

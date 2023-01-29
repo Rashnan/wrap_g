@@ -24,6 +24,11 @@
 #define WRAP_G_OPENGL_VERSION_MINOR 6
 #endif
 
+// whether background resource loading should be used
+#ifndef WRAP_G_BACKGROUND_RESOURCE_LOAD
+#define WRAP_G_BACKGROUND_RESOURCE_LOAD true
+#endif
+
 // whether multithreading should be used
 #ifndef WRAP_G_MULTITHREADING
 #define WRAP_G_MULTITHREADING true
