@@ -289,155 +289,51 @@ namespace utils
     /////
     // 2d & 3d world stuff
 
-    //? useless function get rid of after testing.
-    constexpr std::array<glm::vec3, 3> gen_tri_face(const glm::vec2 &start, const glm::vec2 &end) noexcept
-    {
-        return {
-            glm::vec3{start.x, start.y, 0.0f},
-            glm::vec3{end.x, start.y, 0.0f},
-            glm::vec3{start.x + (end.x - start.x) / 2.0, end.y, 0.0f},
-        };
-    }
-
-    // ! enum class with LEFT_FACE etc.
-    // faces start with start as front bottom left and end as top up right
-
-    enum class RECT_FACES { TRI1_BOTTOM_LEFT, TRI1_TOP_LEFT, TRI1_BOTTOM_RIGHT, TRI2_TOP_LEFT, TRI2_BOTTOM_RIGHT, TRI2_TOP_RIGHT };
+    enum class GEN_TRI_FACE_VERTS {
+        BOTTOM_LEFT,
+        TOP_CENTER,
+        BOTTOM_RIGHT
+    };
 
     /**
-     * @brief Generate a 2d rect face in compile time.
-     *
-     * @param start The starting position of the face.
-     * @param end The ending position of the face. Must be 2d diagonally opposite to start.
-     * @return constexpr std::array<glm::vec2, 6>
+     * @brief Creates the vertices for a triangle like below in compile time. Sort of creates a rect face with the two
+     * 3d points given and draws a triangle in the middle of that face.
+     *          |      *      | (end)
+     *          |     ***     |
+     *          |    *****    |
+     *          |   *******   |
+     *          |  *********  |
+     *  (start) | *********** |
+     * 
+     * @param start the bottom left position
+     * @param end the top right position
+     * @return constexpr std::array<glm::vec3, 3> 
      */
-    constexpr std::array<glm::vec2, 6> gen_rect_face(const glm::vec2 &start, const glm::vec2 &end) noexcept
-    {
-        return std::array{
-            start,
-            glm::vec2{start.x, end.y},
-            glm::vec2{end.x, start.y},
+    constexpr std::array<glm::vec3, 3> gen_tri_face(const glm::vec3 &start, const glm::vec3 &end) noexcept;
 
-            glm::vec2{start.x, end.y},
-            glm::vec2{end.x, start.y},
-            end
-        };
-    }
-
-    enum class BOUNDING_RECT { LEFT, RIGHT, BOTTOM, TOP };
-    /**
-     * @brief Generate the bounds of a rect face in compile time.
-    */
-   constexpr std::array<float, 4> gen_bounding_rect(const glm::vec2& start, const glm::vec2& end) noexcept
-   {
-        return {start.x, end.x, start.y, end.y};
-   }
+    enum class GEN_RECT_FACE_VERTS {
+        BOTTOM_LEFT,
+        TOP_LEFT,
+        TOP_RIGHT,
+        BOTTOM_RIGHT
+    };
 
     /**
-     * @brief Check whether a position is within the bounding rect. This function is intended to take 
-     * the return value from gen_bouding_rect as the bounding rect which should be stored for future use
-     * with collision testing etc.
-     * @param bounding_rect The bouding rect generated from gen_bounding_rect.
-     * @param position The position to check if it is within the bounding_rect.
-    */
-    bool within_bounding_rect(const std::array<float, 4>& bounding_rect, const glm::vec2& position) noexcept
-    {
-        auto&& left = bounding_rect[(int)BOUNDING_RECT::LEFT];
-        auto&& right = bounding_rect[(int)BOUNDING_RECT::RIGHT];
-        auto&& top = bounding_rect[(int)BOUNDING_RECT::BOTTOM];
-        auto&& bottom = bounding_rect[(int)BOUNDING_RECT::TOP];
-
-        std::cout << "left: "<<left<< ", right: "<<right<<", top: "<<top<<", bottom: "<<bottom<<"\n";
-        std::cout << "position: ";
-        utils::print_vecs<2>(glm::value_ptr(position));
-        return (top <= position.y && position.y <= bottom) && (left <= position.x && position.x <= right);
-    }
-    /**
-     * @brief Generate a 3d cuboid face in compile time.
-     *
-     * @param start The starting position of the face.
-     * @param end The ending position of the face. Must be 3d diagonally opposite to start.
-     * @return constexpr std::array<glm::vec3, 36>
+     * @brief Creates the vertices for a rectangle face using the two given 3d points.
+     * * NOTE: Needs an element array buffer whem generating the rectangle. 
+     * creates a rectangle like below in compile time.
+     *          | *********** | (end)
+     *          | *********** |
+     *          | *********** |
+     *          | *********** |
+     *          | *********** |
+     *  (start) | *********** |
+     * 
+     * @param start the bottom left point
+     * @param end the top right point
+     * @return constexpr std::array<glm::vec3, 4> 
      */
-    constexpr std::array<glm::vec3, 36> gen_cuboid_faces(const glm::vec3 &start, const glm::vec3 &end) noexcept
-    {
-        // face looking at:
-        // left ------- right
-        // -----------------------
-        // front        back
-        // right        left
-        // bottom       top
-
-        return std::array{
-            // front
-            glm::vec3{start.x, start.y, start.z},
-            glm::vec3{start.x, end.y, start.z},
-            glm::vec3{end.x, start.y, start.z},
-
-            glm::vec3{start.x, end.y, start.z},
-            glm::vec3{end.x, start.y, start.z},
-            glm::vec3{end.x, end.y, start.z},
-
-            // back
-            glm::vec3{start.x, start.y, end.z},
-            glm::vec3{start.x, end.y, end.z},
-            glm::vec3{end.x, start.y, end.z},
-
-            glm::vec3{start.x, end.y, end.z},
-            glm::vec3{end.x, start.y, end.z},
-            glm::vec3{end.x, end.y, end.z},
-
-            // right
-            glm::vec3{end.x, start.y, end.z},
-            glm::vec3{end.x, end.y, end.z},
-            glm::vec3{end.x, start.y, start.z},
-
-            glm::vec3{end.x, end.y, end.z},
-            glm::vec3{end.x, start.y, start.z},
-            glm::vec3{end.x, end.y, start.z},
-
-            // left
-            glm::vec3{start.x, start.y, end.z},
-            glm::vec3{start.x, end.y, end.z},
-            glm::vec3{start.x, start.y, start.z},
-
-            glm::vec3{start.x, end.y, end.z},
-            glm::vec3{start.x, start.y, start.z},
-            glm::vec3{start.x, end.y, start.z},
-
-            // bottom
-            glm::vec3{end.x, start.y, end.z},
-            glm::vec3{start.x, start.y, end.z},
-            glm::vec3{end.x, start.y, start.z},
-
-            glm::vec3{start.x, start.y, end.z},
-            glm::vec3{end.x, start.y, start.z},
-            glm::vec3{start.x, start.y, start.z},
-
-            // top
-            glm::vec3{end.x, end.y, end.z},
-            glm::vec3{start.x, end.y, end.z},
-            glm::vec3{end.x, end.y, start.z},
-
-            glm::vec3{start.x, end.y, end.z},
-            glm::vec3{end.x, end.y, start.z},
-            glm::vec3{start.x, end.y, start.z},
-        };
-    }
-
-    /**
-     * @brief Generate the normals for a 3d cuboid created by gen_cuboid_faces().
-     *
-     * @return constexpr std::array<glm::vec3, 36>
-     */
-    constexpr std::array<glm::vec3, 36> gen_cuboid_normals() noexcept
-    {
-        // front, back, right, left, bottom, top
-
-        return std::array<glm::vec3, 36>{
-            glm::vec3{0, 0, -1}, {0, 0, -1}, {0, 0, -1}, {0, 0, -1}, {0, 0, -1}, {0, 0, -1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {0, -1, 0}, {0, -1, 0}, {0, -1, 0}, {0, -1, 0}, {0, -1, 0}, {0, -1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}};
-    }
-
+    constexpr std::array<glm::vec3, 4> gen_rect_face(const glm::vec3 &start, const glm::vec3 &end) noexcept;
 
 } // namespace utils
 

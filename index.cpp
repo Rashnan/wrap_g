@@ -5,11 +5,13 @@
 #define WRAP_G_DEBUG true
 
 // #include "src/wrap_g.hpp"
-#include "tests/triangle.hpp"
+// #include "tests/triangle.hpp"
+#include "tests/textured_rect.hpp"
 
 int main()
 {
-    wrap_tests::create_triangle();
-    
+    // wrap_tests::create_triangle();
+    wrap_tests::create_textured_rect();
+
     return 0;
 }

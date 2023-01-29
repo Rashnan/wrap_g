@@ -913,6 +913,25 @@ namespace utils
         std::cout << fn(ptr) << "\n";
     }
 
+    constexpr std::array<glm::vec3, 3> gen_tri_face(const glm::vec3 &start, const glm::vec3 &end) noexcept
+    {
+        return {
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{start.x + (end.x - start.x) / 2.0, end.y, start.z + (end.z - start.z) / 2.0},
+            glm::vec3{end.x, start.y, end.z},
+        };
+    }
+
+    constexpr std::array<glm::vec3, 4> gen_rect_face(const glm::vec3 &start, const glm::vec3 &end) noexcept
+    {
+        return {
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{start.x, end.y, start.z},
+            glm::vec3{end.x, end.y, end.z},
+            glm::vec3{end.x, start.y, end.z},
+        };
+    }
+
 } // namespace utils
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef WRAP_G_TESTS_TRIANGLE
-#define WRAP_G_TESTS_TRIANGLE
+#ifndef WRAP_G_TESTS_TEXTURED_RECT
+#define WRAP_G_TESTS_TEXTURED_RECT
 
 #include <iostream>
 
@@ -8,8 +8,8 @@
 
 namespace wrap_tests
 {
-
-void create_triangle() noexcept
+    
+void create_textured_rect() noexcept
 {
     // time each process
     utils::timer watch;
@@ -59,14 +59,27 @@ void create_triangle() noexcept
     auto vao = win.create_vao();
     auto prog = win.create_program();
 
-    // creates a triangle like below
-    //-         |      *      | (end)
-    //-         |     ***     |
-    //-         |    *****    |
-    //-         |   *******   |
-    //-         |  *********  |
+    // creates a rectangle like below in compile time
+    //-         | *********** | (end)
+    //-         | *********** |
+    //-         | *********** |
+    //-         | *********** |
+    //-         | *********** |
     //- (start) | *********** |
-    constexpr auto verts = utils::gen_tri_face(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
+    constexpr auto verts = utils::gen_rect_face(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
+
+    constexpr auto indices = std::array{
+        glm::uvec3{
+            utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
+            utils::GEN_RECT_FACE_VERTS::TOP_LEFT,
+            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT,
+        },
+        glm::uvec3{
+            utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
+            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT,
+            utils::GEN_RECT_FACE_VERTS::BOTTOM_RIGHT
+        }
+    };
 
     // define_attrib defines an attribute in the shader and enables it
     // (**) inside brackets is paramter number
@@ -87,8 +100,25 @@ void create_triangle() noexcept
     // - stores id of buffer to delete at destructor
     // * template parameter is used to tell the stride.. distance between vertices in memory
     // * as this is often known at compile time.
+    // * stride can be manually set using a GLsizei argument between the data pointer and the flag
     // ! be careful as this may cause headaches if set incorrectly
     vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.cbegin(), GL_MAP_READ_BIT);
+
+    // creates an element array buffer of size indices.size() * sizeof(glm::uvec3) (first)
+    // and the pointer to it is indices.cbegin() (second) and the flag enabled is GL_MAP_READ_BIT (third)
+    // offset from pointer is 0 (default fourth)
+    // underlying:
+    // - creates an element array buffer
+    // - creates fixed size storage (opengl 4.5+)
+    // - creates variable size storage (opengl 3.3+ & 4.3+)
+    // - binds the buffer to the vertex array object
+    // - stores id of buffer to delete at destructor
+    // * template parameter is used to tell the type of the data pointer as this is often known
+    // * in compile time. Setting this parameter explicitly is not importatnt as it is not used
+    // * for any purpose in the uderlying functions in opengl 4.5+ ad opengl 3.3
+    // * for opengl 4.3+ there is a difference but unsure.
+    // TODO: update
+    vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.cbegin(), GL_MAP_READ_BIT);
 
     // extremely basic shader code written in glsl
     const char *vert_src = "\n#version 450 core\n\nlayout (location = 0) in vec3 pos;\n\nvoid main() {\n    gl_Position = vec4(pos.xyz, 1.0);\n}\0",
@@ -144,9 +174,11 @@ void create_triangle() noexcept
         vao.bind();
         prog.use();
         
-        // to draw from purely the vertices in the array buffer use this
-        // start from vertex 0 and go for 3 vertices (verts.size())
-        glDrawArrays(GL_TRIANGLES, 0, verts.size());
+        // since we are also using an element array buffer we must use this instead
+        // count of indices is already set when we created the element array buffer
+        // nullptr (fourth) is used as the pointer to the element array buffer
+        // in case we have not already provided it
+        glDrawElements(GL_TRIANGLES, indices.size() * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
 
         last_frame = watch.stop();
         total_time += last_frame;
@@ -168,8 +200,7 @@ void create_triangle() noexcept
 
     std::cout << "Stopping...\n";
 }
-    
-} // namespace wrap_tests
 
+} // namespace wrap_tests
 
 #endif
