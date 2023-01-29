@@ -52,7 +52,38 @@ void create_textured_rect() noexcept
 
     std::cout << "[main] Debug: Standard stuff time elapsed: " << watch.stop() << " ms \n";
     watch.start();
-    
+
+    ////
+    // background resource fetching
+
+    const char *img_path_1 = "tests/res/images/wall.jpg";
+    const char *img_path_2 = "tests/res/images/awesomeface.png";
+
+    utils::stb_image img_loader_1;
+    utils::stb_image img_loader_2;
+
+    auto load_img_1 = std::async(std::launch::async, [img_path_1, &img_loader_1](){
+        img_loader_1.load_file(img_path_1);
+    });
+
+    auto load_img_2 = std::async(std::launch::async, [img_path_2, &img_loader_2](){
+        stbi_set_flip_vertically_on_load_thread(true);
+        img_loader_2.load_file(img_path_2);
+    });
+
+    const char *vert_path = "tests/res/shaders/textured_rect.vs";
+    const char *frag_path = "tests/res/shaders/textured_rect.fs";
+
+    std::string vert_src, frag_src;
+
+    auto load_vert_src = std::async(std::launch::async, [vert_path, &vert_src](){
+        vert_src = utils::read_file(vert_path);
+    });
+
+    auto load_frag_src = std::async(std::launch::async, [frag_path, &frag_src](){
+        frag_src = utils::read_file(frag_path);
+    });
+
     ////
     // startup code
 
@@ -134,70 +165,51 @@ void create_textured_rect() noexcept
     // TODO: update
     vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.cbegin(), GL_MAP_READ_BIT);
 
+    // rst -> xyz
+    tex1.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    tex1.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    tex1.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    tex1.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    tex1.bind_unit(0);
+
+    tex2.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    tex2.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    tex2.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    tex2.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    tex2.bind_unit(1);
+    
     // quick method to compile and link provided shader files
     // multiple vertex and fragment shaders can be provided and other types of shaders as well
     // template argument tells whether all provided const char* (the vert_src and frag_src) is 
     // a string containing the shader source or a relative path to the file containing the src
     // if true then uses utils to open and read file
     // if false uses string as glsl code directly
-    bool success = prog.quick<true>({
-        {GL_VERTEX_SHADER, {"tests/res/shaders/textured_rect.vs"}},
-        {GL_FRAGMENT_SHADER, {"tests/res/shaders/textured_rect.fs"}}
-    });
+    // bool success = prog.quick<true>({
+    //     {GL_VERTEX_SHADER, {"tests/res/shaders/textured_rect.vs"}},
+    //     {GL_FRAGMENT_SHADER, {"tests/res/shaders/textured_rect.fs"}}
+    // });
+
+    load_vert_src.wait();
+    bool success = prog.create_shader(GL_VERTEX_SHADER, vert_src.c_str());
+    
+    if (!success)
+        return;
+
+    load_frag_src.wait();
+    success = prog.create_shader(GL_FRAGMENT_SHADER, frag_src.c_str());
     
     if (!success)
         return;
     
-    // rst -> xyz
-    tex1.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    tex1.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    tex1.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    tex1.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    success = prog.link_shaders();
 
-    const char *img_path_1 = "tests/res/images/wall.jpg";
-    
-    utils::stb_image img_loader;    
-    img_loader.load_file(img_path_1);
+    if (!success)
+        return;
 
-    if (img_loader.data() == nullptr) {
-        std::cout << "[main] Error: Failed to load image from " << img_path_1 << "\n";
-    }
-    else {
-        // jpg -> GL_RGB
-        // png -> GL_RGBA
-        // refer to https://docs.gl/gl4/glTexStorage2D for internal format
-        tex1.define_texture2d(1, GL_RGB4, img_loader.width(), img_loader.height());
-        tex1.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGB, GL_UNSIGNED_BYTE, img_loader.data());
-        tex1.gen_mipmap();
-    }
-
-    tex1.bind_unit(0);
     // ensure sampler2D uniform is provided as an int and is the same as 
     // the unit the texture is bound to.
     prog.set_uniform<int>(prog.uniform_location("tex1"), 0);
 
-    tex2.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    tex2.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    tex2.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    tex2.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    const char *img_path_2 = "tests/res/images/awesomeface.png";
-    
-    img_loader.load_file(img_path_2, true);
-
-    if (img_loader.data() == nullptr) {
-        std::cout << "[main] Error: Failed to load image from " << img_path_2 << "\n";
-    }
-    else {
-        // jpg -> GL_RGB
-        // png -> GL_RGBA
-        // refer to https://docs.gl/gl4/glTexStorage2D for internal format
-        tex2.define_texture2d(1, GL_RGBA4, img_loader.width(), img_loader.height());
-        tex2.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader.data());
-        tex2.gen_mipmap();
-    }
-
-    tex2.bind_unit(1);
     // ensure sampler2D uniform is provided as an int and is the same as 
     // the unit the texture is bound to.
     prog.set_uniform<int>(prog.uniform_location("tex2"), 1);
@@ -217,9 +229,40 @@ void create_textured_rect() noexcept
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
 
-    std::cout << "Starting...\n";
+    ////
+    // Resource Fetching Threads Done
+
+    load_img_1.wait();
+    
+    if (img_loader_1.data() == nullptr) {
+        std::cout << "[main] Error: Failed to load image from " << img_path_1 << "\n";
+    }
+    else {
+        // jpg -> GL_RGB
+        // png -> GL_RGBA
+        // refer to https://docs.gl/gl4/glTexStorage2D for internal format
+        tex1.define_texture2d(1, GL_RGB4, img_loader_1.width(), img_loader_1.height());
+        tex1.sub_image2d(0, 0, 0, img_loader_1.width(), img_loader_1.height(), GL_RGB, GL_UNSIGNED_BYTE, img_loader_1.data());
+        tex1.gen_mipmap();
+    }
+
+    // load_img_2.wait();
+
+    if (img_loader_2.data() == nullptr) {
+        std::cout << "[main] Error: Failed to load image from " << img_path_2 << "\n";
+    }
+    else {
+        // jpg -> GL_RGB
+        // png -> GL_RGBA
+        // refer to https://docs.gl/gl4/glTexStorage2D for internal format
+        tex2.define_texture2d(1, GL_RGBA4, img_loader_2.width(), img_loader_2.height());
+        tex2.sub_image2d(0, 0, 0, img_loader_2.width(), img_loader_2.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader_2.data());
+        tex2.gen_mipmap();
+    }
 
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
+
+    std::cout << "Starting...\n";
 
     double total_time = 0.0;
     double last_frame = 0.0;
