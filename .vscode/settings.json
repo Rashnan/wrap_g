@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.embeddedhtml": "html",
         "iostream": "cpp",
         "type_traits": "cpp",
         "array": "cpp",
@@ -63,6 +64,7 @@
         "span": "cpp",
         "*.tpp": "cpp",
         "codecvt": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "list": "cpp"
     }
 }

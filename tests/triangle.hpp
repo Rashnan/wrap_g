@@ -128,9 +128,9 @@ void create_triangle() noexcept
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
 
-    std::cout << "Starting...\n";
-
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
+    
+    std::cout << "Starting...\n";
 
     double total_time = 0.0;
     double last_frame = 0.0;
@@ -157,13 +157,14 @@ void create_triangle() noexcept
         // start from vertex 0 and go for 3 vertices (verts.size())
         glDrawArrays(GL_TRIANGLES, 0, verts.size());
 
+        // swap the buffers to show the newly drawn frame
+        win.swap_buffers();
+
         last_frame = watch.stop();
         total_time += last_frame;
         ++n;
         std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
 
-        // swap the buffers to show the newly drawn frame
-        win.swap_buffers();
         // get events such as mouse input
         glfwPollEvents();
     }
