@@ -24,6 +24,11 @@
 #define WRAP_G_OPENGL_VERSION_MINOR 6
 #endif
 
+// whether multithreading should be used
+#ifndef WRAP_G_MULTITHREADING
+#define WRAP_G_MULTITHREADING true
+#endif
+
 // whether debug logs should be included
 #ifndef WRAP_G_DEBUG
 #define WRAP_G_DEBUG true

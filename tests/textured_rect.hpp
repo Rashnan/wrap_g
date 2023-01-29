@@ -54,7 +54,7 @@ void create_textured_rect() noexcept
     watch.start();
 
     ////
-    // background resource fetching
+    // Resource locations
 
     const char *img_path_1 = "tests/res/images/wall.jpg";
     const char *img_path_2 = "tests/res/images/awesomeface.png";
@@ -62,17 +62,24 @@ void create_textured_rect() noexcept
     utils::stb_image img_loader_1;
     utils::stb_image img_loader_2;
 
+    const char *vert_path = "tests/res/shaders/textured_rect.vs";
+    const char *frag_path = "tests/res/shaders/textured_rect.fs";
+
+#if WRAP_G_MULTITHREADING
+    ////
+    // background resource fetching
+
+    // call blocking functions such as files/img loading in seperate thread.
+
     auto load_img_1 = std::async(std::launch::async, [img_path_1, &img_loader_1](){
         img_loader_1.load_file(img_path_1);
     });
 
     auto load_img_2 = std::async(std::launch::async, [img_path_2, &img_loader_2](){
         stbi_set_flip_vertically_on_load_thread(true);
+        // setting vertical_flip param in load_file does not do anything if on seperate thread.
         img_loader_2.load_file(img_path_2);
     });
-
-    const char *vert_path = "tests/res/shaders/textured_rect.vs";
-    const char *frag_path = "tests/res/shaders/textured_rect.fs";
 
     std::string vert_src, frag_src;
 
@@ -83,6 +90,7 @@ void create_textured_rect() noexcept
     auto load_frag_src = std::async(std::launch::async, [frag_path, &frag_src](){
         frag_src = utils::read_file(frag_path);
     });
+#endif
 
     ////
     // startup code
@@ -165,7 +173,13 @@ void create_textured_rect() noexcept
     // TODO: update
     vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.cbegin(), GL_MAP_READ_BIT);
 
+    // GL_TEXTURE_WRAP indicates what would happen if texture coords go outside of range (0.0, 0.0) and (1.0, 1.0)
     // rst -> xyz
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexParameter.xhtml
+    // GL_TEXTURE_MIN_FILTER defines the minifying function used if lower detail samples are needed.
+    // GL_TEXTURE_MAG_FILTER defines the magnifying function used if hgiher detail samples are needed.
+    // bind unit indicates the texture unit the current texture should be bound to.
+
     tex1.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
     tex1.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
     tex1.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -178,33 +192,48 @@ void create_textured_rect() noexcept
     tex2.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     tex2.bind_unit(1);
     
+    // both branches do essentially the same thing
+#if !WRAP_G_MULTITHREADING
     // quick method to compile and link provided shader files
     // multiple vertex and fragment shaders can be provided and other types of shaders as well
     // template argument tells whether all provided const char* (the vert_src and frag_src) is 
     // a string containing the shader source or a relative path to the file containing the src
     // if true then uses utils to open and read file
     // if false uses string as glsl code directly
-    // bool success = prog.quick<true>({
-    //     {GL_VERTEX_SHADER, {"tests/res/shaders/textured_rect.vs"}},
-    //     {GL_FRAGMENT_SHADER, {"tests/res/shaders/textured_rect.fs"}}
-    // });
+    bool success = prog.quick<true>({
+        {GL_VERTEX_SHADER, {vert_path}},
+        {GL_FRAGMENT_SHADER, {frag_path}}
+    });
 
+    if (!success)
+        return;
+#else
+    // ensure vertex source is loaded
     load_vert_src.wait();
+
+    // create and compile the shader source
+    // also attaches it to the shader program
     bool success = prog.create_shader(GL_VERTEX_SHADER, vert_src.c_str());
     
     if (!success)
         return;
 
+    // ensure fragment source is loaded
     load_frag_src.wait();
+
+    // create and compile the shader source
+    // also attaches it to the shader program
     success = prog.create_shader(GL_FRAGMENT_SHADER, frag_src.c_str());
     
     if (!success)
         return;
     
+    // links all attached shaders
     success = prog.link_shaders();
 
     if (!success)
         return;
+#endif
 
     // ensure sampler2D uniform is provided as an int and is the same as 
     // the unit the texture is bound to.
@@ -229,11 +258,17 @@ void create_textured_rect() noexcept
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
 
+#if WRAP_G_MULTITHREADING
     ////
     // Resource Fetching Threads Done
 
+    // wait for thread to load img just in case it is not done
     load_img_1.wait();
-    
+#else
+    // load image now
+    img_loader_1.load_file(img_path_1);    
+#endif
+
     if (img_loader_1.data() == nullptr) {
         std::cout << "[main] Error: Failed to load image from " << img_path_1 << "\n";
     }
@@ -241,12 +276,29 @@ void create_textured_rect() noexcept
         // jpg -> GL_RGB
         // png -> GL_RGBA
         // refer to https://docs.gl/gl4/glTexStorage2D for internal format
+
+        // define texture2d allocates fixed size gpu memory for texture
         tex1.define_texture2d(1, GL_RGB4, img_loader_1.width(), img_loader_1.height());
+        
+        // sub image 2d fills the allocated memory
+        // 0 (first) is the layer, 0 (second) is the x offset, 0 (third) is the y offset,
+        // img_loader_1.width() (fourth), img_loader_1.height() (fifth) are the dimensions
+        // of the image, GL_RGB (sixth) is the format, GL_UNSIGNED_BYTE (seventh) is the data
+        // type of the pointer used to store the image, GL_UNSIGNED_BYTE refers to unsigned char*
+        // and img_loader_1.data() (eighth) is the pointer to the data
         tex1.sub_image2d(0, 0, 0, img_loader_1.width(), img_loader_1.height(), GL_RGB, GL_UNSIGNED_BYTE, img_loader_1.data());
+
+        // generates mipmaps if smaller/larger texture sizes are needed
         tex1.gen_mipmap();
     }
 
-    // load_img_2.wait();
+#if WRAP_G_MULTITHREADING
+    // wait for thread to load img just in case it is not done
+    load_img_2.wait();
+#else
+    // load image now
+    img_loader_2.load_file(img_path_2, true);
+#endif
 
     if (img_loader_2.data() == nullptr) {
         std::cout << "[main] Error: Failed to load image from " << img_path_2 << "\n";
@@ -255,8 +307,18 @@ void create_textured_rect() noexcept
         // jpg -> GL_RGB
         // png -> GL_RGBA
         // refer to https://docs.gl/gl4/glTexStorage2D for internal format
+
+        // define texture2d allocates fixed size gpu memory for texture
         tex2.define_texture2d(1, GL_RGBA4, img_loader_2.width(), img_loader_2.height());
+
+        // sub image 2d fills the allocated memory
+        // 0 (first) is the layer, 0 (second) is the x offset, 0 (third) is the y offset,
+        // img_loader_2.width() (fourth), img_loader_2.height() (fifth) are the dimensions
+        // of the image, GL_RGB (sixth) is the format, GL_UNSIGNED_BYTE (seventh) is the data
+        // type of the pointer used to store the image, GL_UNSIGNED_BYTE refers to unsigned char*
+        // and img_loader_2.data() (eighth) is the pointer to the data
         tex2.sub_image2d(0, 0, 0, img_loader_2.width(), img_loader_2.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader_2.data());
+        // generates mipmaps if smaller/larger texture sizes are needed
         tex2.gen_mipmap();
     }
 
@@ -272,6 +334,8 @@ void create_textured_rect() noexcept
     {
         watch.start();
 
+        // press S to make the second image more visible
+        // press S with shift to make first image more visible
         if (glfwGetKey(win.win(), GLFW_KEY_S) == GLFW_PRESS) {
             tex_mix += (glfwGetKey(win.win(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens;
             prog.set_uniform<float>(tex_mix_loc, tex_mix);
@@ -303,6 +367,7 @@ void create_textured_rect() noexcept
 
         // swap the buffers to show the newly drawn frame
         win.swap_buffers();
+        
         // get events such as mouse input
         glfwPollEvents();
     }
