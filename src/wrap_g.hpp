@@ -13,6 +13,9 @@
 #ifndef WRAP_G_HPP
 #define WRAP_G_HPP
 
+////
+// Controls
+
 // the opengl version to build wrap_g for
 // the default version is 4.6
 // min supported version will be 3.3
@@ -24,15 +27,35 @@
 #define WRAP_G_OPENGL_VERSION_MINOR 6
 #endif
 
+// whether multithreading should be used
+#ifndef WRAP_G_MULTITHREADING
+
+// main thread -> glfw event handling
+// render thread -> opengl rendering
+// resource threads -> fetching files etc.
+#define WRAP_G_MULTITHREADING true
+
 // whether background resource loading should be used
 #ifndef WRAP_G_BACKGROUND_RESOURCE_LOAD
 #define WRAP_G_BACKGROUND_RESOURCE_LOAD true
 #endif
 
-// whether multithreading should be used
-#ifndef WRAP_G_MULTITHREADING
-#define WRAP_G_MULTITHREADING true
+// the maximum number of threads that should be used
+// per function
+#ifndef WRAP_G_MAX_FN_THREADS
+#define WRAP_G_MAX_FN_THREADS 4
 #endif
+
+#else
+#if !WRAP_G_MULTITHREADING
+
+// turn off all multithreading functions
+#define WRAP_G_BACKGROUND_RESOURCE_LOAD false
+#define WRAP_G_MAX_FN_THREADS 1
+
+#endif
+#endif
+
 
 // whether debug logs should be included
 #ifndef WRAP_G_DEBUG
@@ -41,10 +64,14 @@
 
 // TODO: add things for opengl 3.3 + support
 
-// whether to use opengl 4.smth ish glDebugMessageControl and etc.
+// whether to use opengl 4.3+ glDebugMessageControl and etc.
+// TODO: test in more advanced scenarios
 #ifndef WRAP_G_USE_NEW_OPENGL_DEBUG_MESSAGE_CONTROL
 #define WRAP_G_USE_NEW_OPENGL_DEBUG_MESSAGE_CONTROL false
 #endif
+
+////
+// Imports
 
 // stl
 #include <iostream>
@@ -100,6 +127,15 @@ namespace wrap_g
     {
         fn(win, button, action, mods);
     };
+
+    template<bool async = false>
+    struct __wrap_g_prog_quick_ret { typedef bool type; };
+    
+    template<>
+    struct __wrap_g_prog_quick_ret<true> { typedef std::future<bool> type; };
+
+    template<bool async>
+    using __wrap_g_prog_quick_ret_t = __wrap_g_prog_quick_ret<async>::type;
 
     ////////
     // declarations
@@ -522,6 +558,10 @@ namespace wrap_g
         GLuint m_id;
         std::unordered_map<GLenum, std::vector<GLuint>> m_shaders;
 
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
+        std::mutex _thread_guard;
+#endif
+
     public:
         /**
          * @brief Disable programs from being created without a window.
@@ -570,18 +610,22 @@ namespace wrap_g
          * @brief Quickly create and link a group of shaders
          * 
          * @tparam paths Whether the strings represent paths to shaders or the shader source code.
+         * @tparam async Whether the shader files should be loaded asynchronously. The strings provided must be
+         * paths for this parameter to have any effect.
          * @tparam String The type of the string object provided. Ex: std::string, const char *, std::string_view
          * @param shaders An unordered map containing a pair of a shader type and a vector of strings
          * that indicate the file path for each respective shader type or a String containgin the shader source code.
          * @return true Created & linked shaders successfully.
          * @return false Failed to create shaders or link successfully.
+         * @return __wrap_g_prog_quick_ret_t This is fluff to auto change type between bool and std::future<bool>. std::future
+         * is wrapped around if both paths and async template parameter are set to true.
          */
-        template<bool paths = true, typename String = std::string>
+        template<bool paths = true, bool async = true, typename String = std::string>
         requires utils::Stringable<String>
-        [[nodiscard]] bool quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept;
+        [[nodiscard]] __wrap_g_prog_quick_ret_t<paths && async> quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept;
 
         /**
-         * @brief Create and attach a shader object. The shader objec can be a vertex shader or a fragment shader etc.
+         * @brief Creates, compiles and attaches a shader object. The shader objec can be a vertex shader or a fragment shader etc.
          *
          * @param shader_type The type of shader to be created. Ex: GL_FRAGMENT_SHADER, GL_VERTEX_SHADER.
          * @param code The code for the shader.

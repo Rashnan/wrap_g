@@ -1,6 +1,8 @@
 #ifndef WRAP_G_TESTS_TRIANGLE
 #define WRAP_G_TESTS_TRIANGLE
 
+#define WRAP_G_TESTS__TRIANGLE_USE_SHADERS true
+
 #include <iostream>
 
 #include "../src/utils.hpp"
@@ -51,7 +53,13 @@ void create_triangle() noexcept
 
     std::cout << "[main] Debug: Standard stuff time elapsed: " << watch.stop() << " ms \n";
     watch.start();
-    
+
+    ////
+    // Resource locations
+
+    constexpr const char *vert_path = "tests/res/shaders/triangle.vs";
+    constexpr const char *frag_path = "tests/res/shaders/triangle.fs";
+
     ////
     // startup code
 
@@ -96,12 +104,11 @@ void create_triangle() noexcept
     // a string containing the shader source or a relative path to the file containing the src
     // if true then uses utils to open and read file
     // if false uses string as glsl code directly
-#define USE_SHADER_FILE true
 
-#if USE_SHADER_FILE
-    bool success = prog.quick<true>({
-        {GL_VERTEX_SHADER, {"tests/res/shaders/triangle.vs"}},
-        {GL_FRAGMENT_SHADER, {"tests/res/shaders/triangle.fs"}}
+#if WRAP_G_TESTS__TRIANGLE_USE_SHADERS
+    bool success = prog.quick<true, false>({
+        {GL_VERTEX_SHADER, {vert_path}},
+        {GL_FRAGMENT_SHADER, {frag_path}}
     });
 #else
     // extremely basic shader code written in glsl
@@ -116,7 +123,7 @@ void create_triangle() noexcept
 
     if (!success)
         return;
-    
+
     // gives a glm::vec4 containing the rgba color values
     constexpr auto blue = utils::hex("#111b24");
     constexpr auto yellow = utils::hex("#d2cb7f");

@@ -64,6 +64,26 @@ namespace utils
         return true;
     }
 
+    std::future<bool> stb_image::load_file_async(const char *path, bool vertical_flip) noexcept
+    {
+        return std::async(std::launch::async, [
+            path, vertical_flip,
+            &data = m_data, &width = m_width, &height = m_height, &nr_channels = m_nr_channels
+        ](){
+            stbi_set_flip_vertically_on_load_thread(vertical_flip);
+            data = stbi_load(path, &width, &height, &nr_channels, 0);
+        
+            // stbi load does not throw exceptions
+            if (width <= 0 || height <= 0)
+            {
+                std::cout << "[utils] Error: Failed to load texture image from " << path << ".\n";
+                return false;
+            }
+
+            return true;
+        });
+    }
+
     ////
     // stb true type
 
@@ -101,9 +121,9 @@ namespace utils
 
     bool stb_true_type::load_file(const char *path) noexcept
     {
-        m_font_file_data = utils::read_file_bytes(path);
+        m_font_file_data = utils::read_file_bytes_sync(path);
 
-        if (!stbtt_InitFont(&m_font_info, m_font_file_data.cbegin().base(), 0))
+       if (!stbtt_InitFont(&m_font_info, m_font_file_data.cbegin().base(), 0))
         {
             std::cout << "[utils] Error: Failed to initialize font from file at " << path << ".\n";
             return false;
@@ -664,8 +684,9 @@ namespace utils
     ////
     // functions
 
-    std::string read_file(const char *path) noexcept
+    std::string read_file_sync(const char *path) noexcept
     {
+        std::string str;
         std::ifstream file;
         file.exceptions(std::ifstream::badbit | std::ifstream::failbit);
         try
@@ -673,17 +694,25 @@ namespace utils
             file.open(path);
             std::stringstream ss;
             ss << file.rdbuf();
-            std::string str = ss.str();
+            str = ss.str();
+            file.close();
             return str;
         }
         catch (const std::ifstream::failure &e)
         {
             std::cout << "[utils] Error: Failed to read file " << path << ". Code: " << e.code() << ", Message: " << e.what() << ".\n";
-            return "";
+            return str;
         }
     }
+
+    std::future<std::string> read_file_async(const char *path) noexcept
+    {
+        return std::async(std::launch::async, [path](){
+            return read_file_sync(path);
+        });
+    }
     
-    std::vector<unsigned char> read_file_bytes(const char *path) noexcept
+    std::vector<unsigned char> read_file_bytes_sync(const char *path) noexcept
     {
         std::vector<unsigned char> data;
         std::ifstream file;
@@ -700,6 +729,13 @@ namespace utils
             std::cout << "[utils] Error: Failed to read file " << path << ". Code: " << e.code() << ", Message: " << e.what() << ".\n";
             return data;
         }
+    }
+
+    std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept
+    {
+        return std::async(std::launch::async, [path](){
+            return read_file_bytes_sync(path);
+        });
     }
 
     template<size_t Width, size_t Height, typename T>

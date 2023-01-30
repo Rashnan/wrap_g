@@ -703,24 +703,31 @@ namespace wrap_g
 #endif
     }
 
-    template<bool paths, typename String>
+    template<bool paths, bool async, typename String>
     requires utils::Stringable<String>
-    [[nodiscard]] bool program::quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept
+    [[nodiscard]] __wrap_g_prog_quick_ret_t<paths && async> program::quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept
     {
         bool success = true;
         // use the provided shader locations
         for (const auto &[shader_type, info_arr] : shaders)
         {
+            // sync vs async per type vs full async
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
             for (const auto &info : info_arr)
             {
                 if constexpr (paths)
                 {
-                    // read the file data
-                    std::string code = utils::read_file(((std::string_view)info).data());
+                    if constexpr(async) {
+                        
+                    }
+                    else {
+                        // read the file data
+                        std::string code = utils::read_file_sync(((std::string_view)info).data());
 
-                    // compile the sub shader
-                    // and add it to the program
-                    success = success && create_shader(shader_type, code.c_str());
+                        // compile the sub shader
+                        // and add it to the program
+                        success = success && create_shader(shader_type, code.c_str());
+                    }
                 }
                 else
                 {
@@ -729,6 +736,31 @@ namespace wrap_g
                     success = success && create_shader(shader_type, ((std::string_view)info).data());
                 }
             }
+#else
+            for (const auto &info : info_arr)
+            {
+                if constexpr (paths)
+                {
+                    if constexpr(async) {
+                        
+                    }
+                    else {
+                        // read the file data
+                        std::string code = utils::read_file_sync(((std::string_view)info).data());
+
+                        // compile the sub shader
+                        // and add it to the program
+                        success = success && create_shader(shader_type, code.c_str());
+                    }
+                }
+                else
+                {
+                    // compile the sub shader
+                    // and add it to the program
+                    success = success && create_shader(shader_type, ((std::string_view)info).data());
+                }
+            }
+#endif
         }
         
         // link all of the currently added shaders
@@ -784,6 +816,9 @@ namespace wrap_g
 #endif
 
         // attach the shader to the current program
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
+        std::lock_guard<std::mutex> lock_prog(_thread_guard);
+#endif
         glAttachShader(m_id, shader_id);
 
         return true;

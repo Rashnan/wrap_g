@@ -56,14 +56,14 @@ void create_textured_rect() noexcept
     ////
     // Resource locations
 
-    const char *img_path_1 = "tests/res/images/wall.jpg";
-    const char *img_path_2 = "tests/res/images/awesomeface.png";
+    constexpr const char *img_path_1 = "tests/res/images/wall.jpg";
+    constexpr const char *img_path_2 = "tests/res/images/awesomeface.png";
 
     utils::stb_image img_loader_1;
     utils::stb_image img_loader_2;
 
-    const char *vert_path = "tests/res/shaders/textured_rect.vs";
-    const char *frag_path = "tests/res/shaders/textured_rect.fs";
+    constexpr const char *vert_path = "tests/res/shaders/textured_rect.vs";
+    constexpr const char *frag_path = "tests/res/shaders/textured_rect.fs";
 
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
     ////
@@ -71,25 +71,11 @@ void create_textured_rect() noexcept
 
     // call blocking functions such as files/img loading in seperate thread.
 
-    auto load_img_1 = std::async(std::launch::async, [img_path_1, &img_loader_1](){
-        img_loader_1.load_file(img_path_1);
-    });
+    auto load_img_1 = img_loader_1.load_file_async(img_path_1);
+    auto load_img_2 = img_loader_2.load_file_async(img_path_2, true);
 
-    auto load_img_2 = std::async(std::launch::async, [img_path_2, &img_loader_2](){
-        stbi_set_flip_vertically_on_load_thread(true);
-        // setting vertical_flip param in load_file does not do anything if on seperate thread.
-        img_loader_2.load_file(img_path_2);
-    });
-
-    std::string vert_src, frag_src;
-
-    auto load_vert_src = std::async(std::launch::async, [vert_path, &vert_src](){
-        vert_src = utils::read_file(vert_path);
-    });
-
-    auto load_frag_src = std::async(std::launch::async, [frag_path, &frag_src](){
-        frag_src = utils::read_file(frag_path);
-    });
+    auto load_vert_src = utils::read_file_async(vert_path);
+    auto load_frag_src = utils::read_file_async(frag_path);
 #endif
 
     ////
@@ -200,7 +186,7 @@ void create_textured_rect() noexcept
     // a string containing the shader source or a relative path to the file containing the src
     // if true then uses utils to open and read file
     // if false uses string as glsl code directly
-    bool success = prog.quick<true>({
+    bool success = prog.quick<true, false>({
         {GL_VERTEX_SHADER, {vert_path}},
         {GL_FRAGMENT_SHADER, {frag_path}}
     });
@@ -209,21 +195,21 @@ void create_textured_rect() noexcept
         return;
 #else
     // ensure vertex source is loaded
-    load_vert_src.wait();
+    // load_vert_src.wait();
 
     // create and compile the shader source
     // also attaches it to the shader program
-    bool success = prog.create_shader(GL_VERTEX_SHADER, vert_src.c_str());
+    bool success = prog.create_shader(GL_VERTEX_SHADER, load_vert_src.get().c_str());
     
     if (!success)
         return;
 
     // ensure fragment source is loaded
-    load_frag_src.wait();
+    // load_frag_src.wait();
 
     // create and compile the shader source
     // also attaches it to the shader program
-    success = prog.create_shader(GL_FRAGMENT_SHADER, frag_src.c_str());
+    success = prog.create_shader(GL_FRAGMENT_SHADER, load_frag_src.get().c_str());
     
     if (!success)
         return;

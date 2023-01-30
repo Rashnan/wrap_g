@@ -2,13 +2,15 @@
 #define UTILS_HPP
 
 // stl
-#include <random>
+
 #include <string>
-#include <array>
 #include <string_view>
-#include <concepts>
+#include <array>
 #include <initializer_list>
 #include <chrono>
+#include <random>
+#include <concepts>
+#include <future>
 
 // glm
 #include <glm/glm.hpp>
@@ -54,6 +56,21 @@ namespace utils
     {
         out << fn(t);
     };
+    
+    template<bool async = true, bool bytes = false>
+    struct _wrap_g_read_file_ret { typedef std::future<std::string> type; };
+
+    template<>
+    struct _wrap_g_read_file_ret<true, true> { typedef std::future<std::vector<unsigned char>> type; };
+    
+    template<>
+    struct _wrap_g_read_file_ret<false, true> { typedef std::vector<unsigned char> type; };
+
+    template<>
+    struct _wrap_g_read_file_ret<false, false> { typedef std::string type; };
+
+    template<bool async, bool bytes>
+    using _wrap_g_read_file_ret_t = _wrap_g_read_file_ret<async, bytes>::type;
 
     ////////
     // declarations
@@ -63,7 +80,7 @@ namespace utils
     // stb_image
 
     /**
-     * @brief Create an image loader using STB_IMAGE
+     * @brief Create an image loader using STB_IMAGE.
      *
      */
     class stb_image
@@ -110,6 +127,16 @@ namespace utils
          * @return false Loading failed.
          */
         bool load_file(const char *path, bool vertical_flip = false) noexcept;
+
+        /**
+         * @brief Load an image async.
+         * * Call future.get() or future.wait() before accessing any of the data variables.
+         *
+         * @param path The path to the image to be loaded.
+         * @param vertical_flip Whether the image should be flipped vertically.
+         * @return std::future<bool>.
+         */
+        [[nodiscard]] std::future<bool> load_file_async(const char *path, bool vertical_flip = false) noexcept;
     };
 
     ////
@@ -247,8 +274,12 @@ namespace utils
     ///
     // functions
 
-    std::string read_file(const char *path) noexcept;
-    std::vector<unsigned char> read_file_bytes(const char *path) noexcept;
+    // just in case functions for each variant
+
+    std::string read_file_sync(const char *path) noexcept;
+    std::future<std::string> read_file_async(const char *path) noexcept;
+    std::vector<unsigned char> read_file_bytes_sync(const char *path) noexcept;
+    std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept;
     
     template<size_t Width, size_t Height, typename T>
     requires std::swappable<T> && (Width > 0) && (Height > 0)
