@@ -558,10 +558,6 @@ namespace wrap_g
         GLuint m_id;
         std::unordered_map<GLenum, std::vector<GLuint>> m_shaders;
 
-#if WRAP_G_BACKGROUND_RESOURCE_LOAD
-        std::mutex _thread_guard;
-#endif
-
     public:
         /**
          * @brief Disable programs from being created without a window.
@@ -588,7 +584,6 @@ namespace wrap_g
          * if all the shaders and their file paths are available immediately
          * * (Code for each repective shader must be stored in files for this function).
          *
-         * @tparam paths Whether the strings represent paths to shaders or the shader source code.
          * @tparam String The type of the string object provided. Ex: std::string, const char *, std::string_view
          * @param __graphics The graphics object used *provided by the window object used to create this program.
          * @param shaders An unordered map containing a pair of a shader type and a vector of strings
@@ -597,8 +592,7 @@ namespace wrap_g
          * ! all strings must have null terminator
          * 
          */
-        
-        template<bool paths = true, typename String = std::string>
+        template<typename String = std::string>
         requires utils::Stringable<String>
         program(wrap_g &__graphics, const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept;
 
@@ -607,22 +601,22 @@ namespace wrap_g
         [[nodiscard]] inline constexpr const auto &shaders() const noexcept { return m_shaders; }
 
         /**
+         * @brief Load and store shader source code.
+         * 
+         */
+
+        /**
          * @brief Quickly create and link a group of shaders
          * 
-         * @tparam paths Whether the strings represent paths to shaders or the shader source code.
-         * @tparam async Whether the shader files should be loaded asynchronously. The strings provided must be
-         * paths for this parameter to have any effect.
          * @tparam String The type of the string object provided. Ex: std::string, const char *, std::string_view
          * @param shaders An unordered map containing a pair of a shader type and a vector of strings
          * that indicate the file path for each respective shader type or a String containgin the shader source code.
          * @return true Created & linked shaders successfully.
          * @return false Failed to create shaders or link successfully.
-         * @return __wrap_g_prog_quick_ret_t This is fluff to auto change type between bool and std::future<bool>. std::future
-         * is wrapped around if both paths and async template parameter are set to true.
          */
-        template<bool paths = true, bool async = true, typename String = std::string>
+        template<typename String = std::string>
         requires utils::Stringable<String>
-        [[nodiscard]] __wrap_g_prog_quick_ret_t<paths && async> quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept;
+        [[nodiscard]] bool quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept;
 
         /**
          * @brief Creates, compiles and attaches a shader object. The shader objec can be a vertex shader or a fragment shader etc.

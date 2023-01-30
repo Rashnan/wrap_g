@@ -1,7 +1,18 @@
 #ifndef WRAP_G_TESTS_TRIANGLE
 #define WRAP_G_TESTS_TRIANGLE
 
-#define WRAP_G_TESTS__TRIANGLE_USE_SHADERS true
+#ifndef WRAP_G_TESTS__USE_DEFAULTS
+#define WRAP_G_TESTS__USE_DEFAULTS false
+#endif
+
+#if WRAP_G_TESTS__USE_DEFAULTS
+#define WRAP_G_OPENGL_VERSION_MAJOR 4
+#define WRAP_G_OPENGL_VERSION_MINOR 6
+#define WRAP_G_BACKGROUND_RESOURCE_LOAD false
+#define WRAP_G_MULTITHREADING false
+#define WRAP_G_DEBUG true
+#define WRAP_G_TESTS__TRIANGLE_USE_SHADERS false
+#endif
 
 #include <iostream>
 
@@ -13,9 +24,11 @@ namespace wrap_tests
 
 void create_triangle() noexcept
 {
+#if WRAP_G_DEBUG
     // time each process
     utils::timer watch;
     watch.start();
+#endif
 
     // initialize glfw and set opengl version and some stuff
     wrap_g::wrap_g graphics;
@@ -51,14 +64,24 @@ void create_triangle() noexcept
     // *not sure if works
     win.set_buffer_swap_interval(0);
 
+#if WRAP_G_DEBUG
     std::cout << "[main] Debug: Standard stuff time elapsed: " << watch.stop() << " ms \n";
     watch.start();
+#endif
 
     ////
     // Resource locations
 
+#if WRAP_G_TESTS__TRIANGLE_USE_SHADERS
     constexpr const char *vert_path = "tests/res/shaders/triangle.vs";
     constexpr const char *frag_path = "tests/res/shaders/triangle.fs";
+
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
+    // start loading shader source from beginning
+    std::future<std::string> load_vert_src = utils::read_file_async(vert_path);
+    std::future<std::string> load_frag_src = utils::read_file_async(frag_path);
+#endif
+#endif
 
     ////
     // startup code
@@ -106,16 +129,27 @@ void create_triangle() noexcept
     // if false uses string as glsl code directly
 
 #if WRAP_G_TESTS__TRIANGLE_USE_SHADERS
-    bool success = prog.quick<true, false>({
-        {GL_VERTEX_SHADER, {vert_path}},
-        {GL_FRAGMENT_SHADER, {frag_path}}
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
+    // get shader source from loaders
+    // get waits current thread until loader is done
+    bool success = prog.quick({
+        {GL_VERTEX_SHADER, {load_vert_src.get()}},
+        {GL_FRAGMENT_SHADER, {load_frag_src.get()}}
     });
 #else
+    // starts reading shader source code now
+    bool success = prog.quick({
+        {GL_VERTEX_SHADER, {utils::read_file_sync(vert_path)}},
+        {GL_FRAGMENT_SHADER, {utils::read_file_sync(frag_path)}}
+    });
+#endif
+#else
+    // since shader is basic, cstring is much faster.
     // extremely basic shader code written in glsl
     const char *vert_src = "\n#version 450 core\n\nlayout (location = 0) in vec3 pos;\n\nvoid main() {\n    gl_Position = vec4(pos.xyz, 1.0);\n}\0",
                 *frag_src= "\n#version 450 core\n\nout vec4 frag_col;\n\nuniform vec4 col;\n\nvoid main()\n{\n    frag_col = col;\n}\0";
 
-    bool success = prog.quick<false>({
+    bool success = prog.quick({
         {GL_VERTEX_SHADER, {vert_src}},
         {GL_FRAGMENT_SHADER, {frag_src}}
     });
@@ -135,6 +169,7 @@ void create_triangle() noexcept
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
 
+#if WRAP_G_DEBUG
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
     
     std::cout << "Starting...\n";
@@ -142,11 +177,16 @@ void create_triangle() noexcept
     double total_time = 0.0;
     double last_frame = 0.0;
     int n = 1;
+#endif
 
     while (!win.get_should_close())
     {
-        watch.start();
+        // get events such as mouse input
+        glfwPollEvents();
 
+#if WRAP_G_DEBUG
+        watch.start();
+#endif
         // set the color that will be used when glClear is called on the color buffer bit
         glClearColor(blue.r, blue.g, blue.b, blue.a);
         
@@ -167,15 +207,15 @@ void create_triangle() noexcept
         // swap the buffers to show the newly drawn frame
         win.swap_buffers();
 
+#if WRAP_G_DEBUG
         last_frame = watch.stop();
         total_time += last_frame;
         ++n;
         std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
-
-        // get events such as mouse input
-        glfwPollEvents();
+#endif
     }
 
+#if WRAP_G_DEBUG
     std::cout << "----------------------------------------------------------------\n";
     std::cout << "[main] Debug: Total frames: " << n << ".\n";
     std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
@@ -184,6 +224,7 @@ void create_triangle() noexcept
     std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
 
     std::cout << "Stopping...\n";
+#endif
 }
     
 } // namespace wrap_tests

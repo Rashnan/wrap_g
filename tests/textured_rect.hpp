@@ -1,6 +1,18 @@
 #ifndef WRAP_G_TESTS_TEXTURED_RECT
 #define WRAP_G_TESTS_TEXTURED_RECT
 
+#ifndef WRAP_G_TESTS__USE_DEFAULTS
+#define WRAP_G_TESTS__USE_DEFAULTS false
+#endif
+
+#if WRAP_G_TESTS__USE_DEFAULTS
+#define WRAP_G_OPENGL_VERSION_MAJOR 4
+#define WRAP_G_OPENGL_VERSION_MINOR 6
+#define WRAP_G_BACKGROUND_RESOURCE_LOAD true
+#define WRAP_G_MULTITHREADING true
+#define WRAP_G_DEBUG true
+#endif
+
 #include <iostream>
 #include <future>
 
@@ -12,9 +24,11 @@ namespace wrap_tests
     
 void create_textured_rect() noexcept
 {
+#if WRAP_G_DEBUG
     // time each process
     utils::timer watch;
     watch.start();
+#endif
 
     // initialize glfw and set opengl version and some stuff
     wrap_g::wrap_g graphics;
@@ -50,8 +64,10 @@ void create_textured_rect() noexcept
     // *not sure if works
     win.set_buffer_swap_interval(0);
 
+#if WRAP_G_DEBUG
     std::cout << "[main] Debug: Standard stuff time elapsed: " << watch.stop() << " ms \n";
     watch.start();
+#endif
 
     ////
     // Resource locations
@@ -178,48 +194,28 @@ void create_textured_rect() noexcept
     tex2.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     tex2.bind_unit(1);
     
-    // both branches do essentially the same thing
-#if !WRAP_G_BACKGROUND_RESOURCE_LOAD
     // quick method to compile and link provided shader files
     // multiple vertex and fragment shaders can be provided and other types of shaders as well
     // template argument tells whether all provided const char* (the vert_src and frag_src) is 
     // a string containing the shader source or a relative path to the file containing the src
     // if true then uses utils to open and read file
     // if false uses string as glsl code directly
-    bool success = prog.quick<true, false>({
-        {GL_VERTEX_SHADER, {vert_path}},
-        {GL_FRAGMENT_SHADER, {frag_path}}
+    // both branches do essentially the same thing
+#if !WRAP_G_BACKGROUND_RESOURCE_LOAD
+    // reads the file right now.
+    bool success = prog.quick({
+        {GL_VERTEX_SHADER, {utils::read_file_sync(vert_path)}},
+        {GL_FRAGMENT_SHADER, {utils::read_file_sync(frag_path)}}
     });
-
-    if (!success)
-        return;
 #else
-    // ensure vertex source is loaded
-    // load_vert_src.wait();
-
-    // create and compile the shader source
-    // also attaches it to the shader program
-    bool success = prog.create_shader(GL_VERTEX_SHADER, load_vert_src.get().c_str());
-    
-    if (!success)
-        return;
-
-    // ensure fragment source is loaded
-    // load_frag_src.wait();
-
-    // create and compile the shader source
-    // also attaches it to the shader program
-    success = prog.create_shader(GL_FRAGMENT_SHADER, load_frag_src.get().c_str());
-    
-    if (!success)
-        return;
-    
-    // links all attached shaders
-    success = prog.link_shaders();
-
-    if (!success)
-        return;
+    // if shader source still has not loaded, force main thread to wait.
+    bool success = prog.quick({
+        {GL_VERTEX_SHADER, {load_vert_src.get()}},
+        {GL_FRAGMENT_SHADER, {load_frag_src.get()}}
+    });
 #endif
+    if (!success)
+        return;
 
     // ensure sampler2D uniform is provided as an int and is the same as 
     // the unit the texture is bound to.
@@ -308,6 +304,7 @@ void create_textured_rect() noexcept
         tex2.gen_mipmap();
     }
 
+#if WRAP_G_DEBUG
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
 
     std::cout << "Starting...\n";
@@ -315,10 +312,16 @@ void create_textured_rect() noexcept
     double total_time = 0.0;
     double last_frame = 0.0;
     int n = 1;
+#endif
 
     while (!win.get_should_close())
     {
+        // get events such as mouse input
+        glfwPollEvents();
+
+#if WRAP_G_DEBUG
         watch.start();
+#endif
 
         // press S to make the second image more visible
         // press S with shift to make first image more visible
@@ -346,18 +349,18 @@ void create_textured_rect() noexcept
         // in case we have not already provided it
         glDrawElements(GL_TRIANGLES, indices.size() * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
 
+        // swap the buffers to show the newly drawn frame
+        win.swap_buffers();
+
+#if WRAP_G_DEBUG
         last_frame = watch.stop();
         total_time += last_frame;
         ++n;
         std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
-
-        // swap the buffers to show the newly drawn frame
-        win.swap_buffers();
-
-        // get events such as mouse input
-        glfwPollEvents();
+#endif
     }
 
+#if WRAP_G_DEBUG
     std::cout << "----------------------------------------------------------------\n";
     std::cout << "[main] Debug: Total frames: " << n << ".\n";
     std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
@@ -366,6 +369,7 @@ void create_textured_rect() noexcept
     std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
 
     std::cout << "Stopping...\n";
+#endif
 }
 
 } // namespace wrap_tests
