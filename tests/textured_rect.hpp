@@ -121,7 +121,7 @@ void create_textured_rect() noexcept
         glm::uvec3{
             utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
             utils::GEN_RECT_FACE_VERTS::TOP_LEFT,
-            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT,
+            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT
         },
         glm::uvec3{
             utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
@@ -174,6 +174,7 @@ void create_textured_rect() noexcept
     // * for opengl 4.3+ there is a difference but unsure.
     // TODO: update
     vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.cbegin(), GL_MAP_READ_BIT);
+    constexpr size_t indices_size = indices.size();
 
     // GL_TEXTURE_WRAP indicates what would happen if texture coords go outside of range (0.0, 0.0) and (1.0, 1.0)
     // rst -> xyz
@@ -224,6 +225,10 @@ void create_textured_rect() noexcept
     // ensure sampler2D uniform is provided as an int and is the same as 
     // the unit the texture is bound to.
     prog.set_uniform<int>(prog.uniform_location("tex2"), 1);
+
+#if WRAP_G_MULTITHREADING
+    std::mutex tex_mix_guard;
+#endif
 
     float tex_mix = 0.5f, tex_mix_sens = 0.01f;
     int tex_mix_loc = prog.uniform_location("tex_mix");
@@ -305,70 +310,169 @@ void create_textured_rect() noexcept
     }
 
 #if WRAP_G_DEBUG
-    std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
-
-    std::cout << "Starting...\n";
-
-    double total_time = 0.0;
-    double last_frame = 0.0;
-    int n = 1;
+        std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
 #endif
+
+#if WRAP_G_MULTITHREADING
+    // move context to other thread
+    glfwMakeContextCurrent(NULL);
+
+    // combine all render functions
+    auto render_fn = [
+        &watch,
+        &win,
+        &blue,
+        &prog, &vao, indices_size,
+        &tex_mix_loc, &tex_mix, &tex_mix_guard
+    ](){
+        win.set_current_context();
+
+#if WRAP_G_DEBUG
+        std::cout << "Starting...\n";
+
+        double total_time = 0.0;
+        double last_frame = 0.0;
+        int n = 1;
+#endif
+        while (!win.get_should_close())
+        {
+#if WRAP_G_DEBUG
+            watch.start();
+#endif
+            {
+                std::lock_guard<std::mutex> tex_mix_lock_guard(tex_mix_guard);
+                prog.set_uniform<float>(tex_mix_loc, tex_mix);
+            }
+
+            // set the color that will be used when glClear is called on the color buffer bit
+            glClearColor(blue.r, blue.g, blue.b, blue.a);
+            
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            // use this instead of above to enable 3d depth testing
+            // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            // glEnable(GL_DEPTH_TEST);
+
+            // bind vao and shader program before issuing draw call
+            vao.bind();
+            prog.use();
+            
+            // since we are also using an element array buffer we must use this instead
+            // count of indices is already set when we created the element array buffer
+            // nullptr (fourth) is used as the pointer to the element array buffer
+            // in case we have not already provided it
+            glDrawElements(GL_TRIANGLES, indices_size * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
+
+            // swap the buffers to show the newly drawn frame
+            win.swap_buffers();
+
+#if WRAP_G_DEBUG
+            last_frame = watch.stop();
+            total_time += last_frame;
+            ++n;
+            std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+#endif
+        }
+
+#if WRAP_G_DEBUG
+        std::cout << "----------------------------------------------------------------\n";
+        std::cout << "[main] Debug: Total frames: " << n << ".\n";
+        std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
+        std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
+
+        std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
+
+        std::cout << "Stopping...\n";
+#endif
+
+        glfwMakeContextCurrent(NULL);
+    };
+
+    // run all render functions on seperate thread
+    auto render_thread = std::async(std::launch::async, render_fn);
+
 
     while (!win.get_should_close())
     {
         // get events such as mouse input
-        glfwPollEvents();
-
-#if WRAP_G_DEBUG
-        watch.start();
-#endif
+        glfwWaitEvents();
 
         // press S to make the second image more visible
         // press S with shift to make first image more visible
         if (glfwGetKey(win.win(), GLFW_KEY_S) == GLFW_PRESS) {
+            std::lock_guard<std::mutex> tex_mix_lock_guard(tex_mix_guard);
             tex_mix += (glfwGetKey(win.win(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens;
-            prog.set_uniform<float>(tex_mix_loc, tex_mix);
         }
-
-        // set the color that will be used when glClear is called on the color buffer bit
-        glClearColor(blue.r, blue.g, blue.b, blue.a);
-        
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        // use this instead of above to enable 3d depth testing
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // glEnable(GL_DEPTH_TEST);
-
-        // bind vao and shader program before issuing draw call
-        vao.bind();
-        prog.use();
-        
-        // since we are also using an element array buffer we must use this instead
-        // count of indices is already set when we created the element array buffer
-        // nullptr (fourth) is used as the pointer to the element array buffer
-        // in case we have not already provided it
-        glDrawElements(GL_TRIANGLES, indices.size() * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
-
-        // swap the buffers to show the newly drawn frame
-        win.swap_buffers();
-
-#if WRAP_G_DEBUG
-        last_frame = watch.stop();
-        total_time += last_frame;
-        ++n;
-        std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
-#endif
     }
 
+    // ensure render thread removes context
+    render_thread.wait();
+
+    // set context back to main for destructors
+    win.set_current_context();
+#else
 #if WRAP_G_DEBUG
-    std::cout << "----------------------------------------------------------------\n";
-    std::cout << "[main] Debug: Total frames: " << n << ".\n";
-    std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
-    std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
+        std::cout << "Starting...\n";
 
-    std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
+        double total_time = 0.0;
+        double last_frame = 0.0;
+        int n = 1;
+#endif
+        while (!win.get_should_close())
+        {
+            // get events such as mouse input
+            glfwPollEvents();
 
-    std::cout << "Stopping...\n";
+            // press S to make the second image more visible
+            // press S with shift to make first image more visible
+            if (glfwGetKey(win.win(), GLFW_KEY_S) == GLFW_PRESS) {
+                tex_mix += (glfwGetKey(win.win(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens;
+                prog.set_uniform<float>(tex_mix_loc, tex_mix);
+            }
+
+#if WRAP_G_DEBUG
+            watch.start();
+#endif
+
+            // set the color that will be used when glClear is called on the color buffer bit
+            glClearColor(blue.r, blue.g, blue.b, blue.a);
+            
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            // use this instead of above to enable 3d depth testing
+            // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            // glEnable(GL_DEPTH_TEST);
+
+            // bind vao and shader program before issuing draw call
+            vao.bind();
+            prog.use();
+            
+            // since we are also using an element array buffer we must use this instead
+            // count of indices is already set when we created the element array buffer
+            // nullptr (fourth) is used as the pointer to the element array buffer
+            // in case we have not already provided it
+            glDrawElements(GL_TRIANGLES, indices_size * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
+
+            // swap the buffers to show the newly drawn frame
+            win.swap_buffers();
+
+#if WRAP_G_DEBUG
+            last_frame = watch.stop();
+            total_time += last_frame;
+            ++n;
+            std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+#endif
+        }
+#if WRAP_G_DEBUG
+        std::cout << "----------------------------------------------------------------\n";
+        std::cout << "[main] Debug: Total frames: " << n << ".\n";
+        std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
+        std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
+
+        std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
+
+        std::cout << "Stopping...\n";
+#endif
 #endif
 }
 

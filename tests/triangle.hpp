@@ -9,7 +9,7 @@
 #define WRAP_G_OPENGL_VERSION_MAJOR 4
 #define WRAP_G_OPENGL_VERSION_MINOR 6
 #define WRAP_G_BACKGROUND_RESOURCE_LOAD false
-#define WRAP_G_MULTITHREADING false
+#define WRAP_G_MULTITHREADING true
 #define WRAP_G_DEBUG true
 #define WRAP_G_TESTS__TRIANGLE_USE_SHADERS false
 #endif
@@ -120,6 +120,7 @@ void create_triangle() noexcept
     // * as this is often known at compile time.
     // ! be careful as this may cause headaches if set incorrectly
     vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.cbegin(), GL_MAP_READ_BIT);
+    constexpr size_t verts_size = verts.size();
 
     // The quick method is used to compile and link provided shader files
     // multiple vertex and fragment shaders can be provided and other types of shaders as well
@@ -169,6 +170,90 @@ void create_triangle() noexcept
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
 
+#if WRAP_G_MULTITHREADING
+    // move context to other thread
+    glfwMakeContextCurrent(NULL);
+
+    // combine all render functions
+    auto render_fn = [
+        &watch,
+        &win,
+        &blue,
+        &prog, &vao, verts_size
+    ](){
+        win.set_current_context();
+
+#if WRAP_G_DEBUG
+        std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
+        
+        std::cout << "Starting...\n";
+
+        double total_time = 0.0;
+        double last_frame = 0.0;
+        int n = 1;
+#endif
+        while (!win.get_should_close())
+        {
+#if WRAP_G_DEBUG
+            watch.start();
+#endif
+            // set the color that will be used when glClear is called on the color buffer bit
+            glClearColor(blue.r, blue.g, blue.b, blue.a);
+            
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            // use this instead of above to enable 3d depth testing
+            // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            // glEnable(GL_DEPTH_TEST);
+
+            // bind vao and shader program before issuing draw call
+            vao.bind();
+            prog.use();
+
+            // to draw from purely the vertices in the array buffer use this
+            // start from vertex 0 and go for 3 vertices (verts_size)
+            glDrawArrays(GL_TRIANGLES, 0, verts_size);
+
+            // swap the buffers to show the newly drawn frame
+            win.swap_buffers();
+
+#if WRAP_G_DEBUG
+            last_frame = watch.stop();
+            total_time += last_frame;
+            ++n;
+            std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+#endif
+        }
+#if WRAP_G_DEBUG
+        std::cout << "----------------------------------------------------------------\n";
+        std::cout << "[main] Debug: Total frames: " << n << ".\n";
+        std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
+        std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
+
+        std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
+
+        std::cout << "Stopping...\n";
+#endif
+
+        glfwMakeContextCurrent(NULL);
+    };
+
+    // run all render functions on seperate thread
+    auto render_thread = std::async(std::launch::async, render_fn);
+
+    // wait for events to keep window responsive
+    while (!win.get_should_close())
+    {
+        // get events such as mouse input
+        glfwWaitEvents();
+    }
+
+    // ensure render thread removes context
+    render_thread.wait();
+
+    // set context back to main for destructors
+    win.set_current_context();
+#else
 #if WRAP_G_DEBUG
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
     
@@ -202,7 +287,7 @@ void create_triangle() noexcept
 
         // to draw from purely the vertices in the array buffer use this
         // start from vertex 0 and go for 3 vertices (verts.size())
-        glDrawArrays(GL_TRIANGLES, 0, verts.size());
+        glDrawArrays(GL_TRIANGLES, 0, verts_size);
 
         // swap the buffers to show the newly drawn frame
         win.swap_buffers();
@@ -224,6 +309,7 @@ void create_triangle() noexcept
     std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
 
     std::cout << "Stopping...\n";
+#endif
 #endif
 }
     

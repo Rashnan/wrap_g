@@ -28,32 +28,17 @@
 #endif
 
 // whether multithreading should be used
-#ifndef WRAP_G_MULTITHREADING
-
+// in rendering
 // main thread -> glfw event handling
 // render thread -> opengl rendering
 // resource threads -> fetching files etc.
+#ifndef WRAP_G_MULTITHREADING
 #define WRAP_G_MULTITHREADING true
+#endif
 
-// whether background resource loading should be used
+// whether background resource loading threads should be used
 #ifndef WRAP_G_BACKGROUND_RESOURCE_LOAD
 #define WRAP_G_BACKGROUND_RESOURCE_LOAD true
-#endif
-
-// the maximum number of threads that should be used
-// per function
-#ifndef WRAP_G_MAX_FN_THREADS
-#define WRAP_G_MAX_FN_THREADS 4
-#endif
-
-#else
-#if !WRAP_G_MULTITHREADING
-
-// turn off all multithreading functions
-#define WRAP_G_BACKGROUND_RESOURCE_LOAD false
-#define WRAP_G_MAX_FN_THREADS 1
-
-#endif
 #endif
 
 
