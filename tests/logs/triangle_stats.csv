@@ -1,0 +1,5 @@
+Day, Date, Time, Avg. Render time(ms), FPS, Total Render time (ms), Mulltithreading,
+Tue, 31 Jan 2023 14:42:110.253579, 3943.55, 124, false,
+Tue, 31 Jan 2023 14:42:240.392996, 2544.55, 101, false,
+Tue, 31 Jan 2023 14:42:400.811644, 1232.07, 237, true,
+Tue, 31 Jan 2023 14:42:510.564014, 1773.01, 163, true,

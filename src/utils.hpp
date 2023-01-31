@@ -34,6 +34,7 @@ namespace utils
     class random;
 
     class timer;
+    class metrics;
 
     ////////
     // concepts
@@ -269,6 +270,29 @@ namespace utils
 
         template <typename DurationUnit = ms>
         [[nodiscard]] int stop() noexcept;
+    };
+
+    ////
+    // metrics
+
+    class metrics
+    {
+    private:
+        std::ostream& m_out;// console
+
+        // default tracking...
+        unsigned int m_frames = 0;
+        double m_total_time = 0.0;
+        double m_last_time = 0.0;
+
+    public:
+        metrics(std::ostream& out = std::cout) noexcept;
+
+        void start_tracking() noexcept;
+        void track_frame(double dt) noexcept;
+        void finish_tracking() noexcept;
+
+        void save(std::string_view filename, std::vector<std::string_view> extra_fields = {}) noexcept;
     };
 
     ///

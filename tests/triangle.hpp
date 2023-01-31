@@ -1,18 +1,7 @@
 #ifndef WRAP_G_TESTS_TRIANGLE
 #define WRAP_G_TESTS_TRIANGLE
 
-#ifndef WRAP_G_TESTS__USE_DEFAULTS
-#define WRAP_G_TESTS__USE_DEFAULTS false
-#endif
-
-#if WRAP_G_TESTS__USE_DEFAULTS
-#define WRAP_G_OPENGL_VERSION_MAJOR 4
-#define WRAP_G_OPENGL_VERSION_MINOR 6
-#define WRAP_G_BACKGROUND_RESOURCE_LOAD false
-#define WRAP_G_MULTITHREADING true
-#define WRAP_G_DEBUG true
 #define WRAP_G_TESTS__TRIANGLE_USE_SHADERS false
-#endif
 
 #include <iostream>
 
@@ -71,6 +60,8 @@ void create_triangle() noexcept
 
     ////
     // Resource locations
+
+    constexpr const char *stats_loc = "tests/logs/triangle_stats.csv";
 
 #if WRAP_G_TESTS__TRIANGLE_USE_SHADERS
     constexpr const char *vert_path = "tests/res/shaders/triangle.vs";
@@ -169,6 +160,7 @@ void create_triangle() noexcept
     // in practice use uniform_locations or uniform_location to store location of uniforms
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
+    std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
 
 #if WRAP_G_MULTITHREADING
     // move context to other thread
@@ -184,13 +176,8 @@ void create_triangle() noexcept
         win.set_current_context();
 
 #if WRAP_G_DEBUG
-        std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
-        
-        std::cout << "Starting...\n";
-
-        double total_time = 0.0;
-        double last_frame = 0.0;
-        int n = 1;
+        utils::metrics tracker;
+        tracker.start_tracking();
 #endif
         while (!win.get_should_close())
         {
@@ -218,21 +205,12 @@ void create_triangle() noexcept
             win.swap_buffers();
 
 #if WRAP_G_DEBUG
-            last_frame = watch.stop();
-            total_time += last_frame;
-            ++n;
-            std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+            tracker.track_frame(watch.stop());
 #endif
         }
 #if WRAP_G_DEBUG
-        std::cout << "----------------------------------------------------------------\n";
-        std::cout << "[main] Debug: Total frames: " << n << ".\n";
-        std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
-        std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
-
-        std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
-
-        std::cout << "Stopping...\n";
+        tracker.finish_tracking();
+        tracker.save(stats_loc, {WRAP_G_MULTITHREADING ? "true" : "false"});
 #endif
 
         glfwMakeContextCurrent(NULL);
@@ -255,13 +233,8 @@ void create_triangle() noexcept
     win.set_current_context();
 #else
 #if WRAP_G_DEBUG
-    std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
-    
-    std::cout << "Starting...\n";
-
-    double total_time = 0.0;
-    double last_frame = 0.0;
-    int n = 1;
+    utils::metrics tracker;
+    tracker.start_tracking();
 #endif
 
     while (!win.get_should_close())
@@ -293,22 +266,13 @@ void create_triangle() noexcept
         win.swap_buffers();
 
 #if WRAP_G_DEBUG
-        last_frame = watch.stop();
-        total_time += last_frame;
-        ++n;
-        std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+        tracker.track_frame(watch.stop());
 #endif
     }
 
 #if WRAP_G_DEBUG
-    std::cout << "----------------------------------------------------------------\n";
-    std::cout << "[main] Debug: Total frames: " << n << ".\n";
-    std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
-    std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
-
-    std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
-
-    std::cout << "Stopping...\n";
+    tracker.finish_tracking();
+    tracker.save(stats_loc, {WRAP_G_MULTITHREADING ? "true" : "false"});
 #endif
 #endif
 }

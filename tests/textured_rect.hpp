@@ -1,18 +1,6 @@
 #ifndef WRAP_G_TESTS_TEXTURED_RECT
 #define WRAP_G_TESTS_TEXTURED_RECT
 
-#ifndef WRAP_G_TESTS__USE_DEFAULTS
-#define WRAP_G_TESTS__USE_DEFAULTS false
-#endif
-
-#if WRAP_G_TESTS__USE_DEFAULTS
-#define WRAP_G_OPENGL_VERSION_MAJOR 4
-#define WRAP_G_OPENGL_VERSION_MINOR 6
-#define WRAP_G_BACKGROUND_RESOURCE_LOAD true
-#define WRAP_G_MULTITHREADING true
-#define WRAP_G_DEBUG true
-#endif
-
 #include <iostream>
 #include <future>
 
@@ -84,6 +72,8 @@ void create_textured_rect() noexcept
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
     ////
     // background resource fetching
+
+    constexpr const char *stats_loc = "tests/logs/textured_rect_stats.csv";
 
     // call blocking functions such as files/img loading in seperate thread.
 
@@ -328,11 +318,13 @@ void create_textured_rect() noexcept
         win.set_current_context();
 
 #if WRAP_G_DEBUG
-        std::cout << "Starting...\n";
+        // std::cout << "Starting...\n";
 
-        double total_time = 0.0;
-        double last_frame = 0.0;
-        int n = 1;
+        // double total_time = 0.0;
+        // double last_frame = 0.0;
+        // int n = 1;
+        utils::metrics tracker;
+        tracker.start_tracking();
 #endif
         while (!win.get_should_close())
         {
@@ -367,22 +359,25 @@ void create_textured_rect() noexcept
             win.swap_buffers();
 
 #if WRAP_G_DEBUG
-            last_frame = watch.stop();
-            total_time += last_frame;
-            ++n;
-            std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+            // last_frame = watch.stop();
+            // total_time += last_frame;
+            // ++n;
+            // std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+            tracker.track_frame(watch.stop());
 #endif
         }
 
 #if WRAP_G_DEBUG
-        std::cout << "----------------------------------------------------------------\n";
-        std::cout << "[main] Debug: Total frames: " << n << ".\n";
-        std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
-        std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
+        // std::cout << "----------------------------------------------------------------\n";
+        // std::cout << "[main] Debug: Total frames: " << n << ".\n";
+        // std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
+        // std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
 
-        std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
+        // std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
 
-        std::cout << "Stopping...\n";
+        // std::cout << "Stopping...\n";
+        tracker.finish_tracking();
+        tracker.save(stats_loc, {WRAP_G_MULTITHREADING ? "true" : "false"});
 #endif
 
         glfwMakeContextCurrent(NULL);
@@ -412,11 +407,13 @@ void create_textured_rect() noexcept
     win.set_current_context();
 #else
 #if WRAP_G_DEBUG
-        std::cout << "Starting...\n";
+        // std::cout << "Starting...\n";
 
-        double total_time = 0.0;
-        double last_frame = 0.0;
-        int n = 1;
+        // double total_time = 0.0;
+        // double last_frame = 0.0;
+        // int n = 1;
+        utils::metrics tracker;
+        tracker.start_tracking();
 #endif
         while (!win.get_should_close())
         {
@@ -457,21 +454,24 @@ void create_textured_rect() noexcept
             win.swap_buffers();
 
 #if WRAP_G_DEBUG
-            last_frame = watch.stop();
-            total_time += last_frame;
-            ++n;
-            std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+            // last_frame = watch.stop();
+            // total_time += last_frame;
+            // ++n;
+            // std::cout << "[main] Debug: Frame render took " << last_frame << " ms.\n";
+            tracker.track_frame(watch.stop());
 #endif
         }
 #if WRAP_G_DEBUG
-        std::cout << "----------------------------------------------------------------\n";
-        std::cout << "[main] Debug: Total frames: " << n << ".\n";
-        std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
-        std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
+        // std::cout << "----------------------------------------------------------------\n";
+        // std::cout << "[main] Debug: Total frames: " << n << ".\n";
+        // std::cout << "[main] Debug: Average frame render time: " << total_time / n << " ms.\n";
+        // std::cout << "[main] Debug: FPS: " << 1e3 * n / total_time << "\n";
 
-        std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
+        // std::cout << "[main] Debug: Running code time elapsed: " << total_time << " ms \n";
 
-        std::cout << "Stopping...\n";
+        // std::cout << "Stopping...\n";
+        tracker.finish_tracking();
+        tracker.save(stats_loc, {WRAP_G_MULTITHREADING ? "true" : "false"});
 #endif
 #endif
 }

@@ -6,16 +6,14 @@
 #define WRAP_G_MULTITHREADING true
 #define WRAP_G_DEBUG true
 
-// #define WRAP_G_TESTS__USE_DEFAULTS false
-
 // #include "src/wrap_g.hpp"
-// #include "tests/triangle.hpp"
-#include "tests/textured_rect.hpp"
+#include "tests/triangle.hpp"
+// #include "tests/textured_rect.hpp"
 
 int main()
 {
-    // wrap_tests::create_triangle();
-    wrap_tests::create_textured_rect();
+    wrap_tests::create_triangle();
+    // wrap_tests::create_textured_rect();
 
     return 0;
 }
