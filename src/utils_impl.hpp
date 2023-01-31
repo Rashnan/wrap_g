@@ -734,7 +734,7 @@ namespace utils
             auto now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
             auto now_tm = *std::localtime(&now);            
 
-            ss << std::put_time(&now_tm, "%a, %d %b %Y %H:%M:%S");
+            ss << std::put_time(&now_tm, "%a, %d %b %Y %H:%M:%S") << ", ";
 
             ss << m_total_time / m_frames << ", " << 1e3 * m_frames / m_total_time << ", " << m_total_time;
             for (auto& field : extra_fields)

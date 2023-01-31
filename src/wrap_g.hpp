@@ -27,15 +27,6 @@
 #define WRAP_G_OPENGL_VERSION_MINOR 6
 #endif
 
-// whether multithreading should be used
-// in rendering
-// main thread -> glfw event handling
-// render thread -> opengl rendering
-// resource threads -> fetching files etc.
-#ifndef WRAP_G_MULTITHREADING
-#define WRAP_G_MULTITHREADING true
-#endif
-
 // whether background resource loading threads should be used
 #ifndef WRAP_G_BACKGROUND_RESOURCE_LOAD
 #define WRAP_G_BACKGROUND_RESOURCE_LOAD true
