@@ -18,7 +18,7 @@
 
 // stb true type
 #define STB_TRUETYPE_IMPLEMENTATION
-#include "../../dependencies/stb/stb_true_type.h"
+#include "../dep/stb/stb_true_type.h"
 
 namespace utils
 {

@@ -13,11 +13,11 @@
 
 // stb image
 #define STB_IMAGE_IMPLEMENTATION
-#include "../../dependencies/stb/stb_image.h"
+#include "../dep//stb/stb_image.h"
 
 // stb image write
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../../dependencies/stb/stb_image_write.h"
+#include "../dep//stb/stb_image_write.h"
 
 // // stb true type
 // #define STB_TRUETYPE_IMPLEMENTATION
