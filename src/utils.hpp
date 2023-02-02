@@ -289,7 +289,7 @@ namespace utils
         metrics(std::ostream& out = std::cout) noexcept;
 
         void start_tracking() noexcept;
-        void track_frame(double dt) noexcept;
+        void track_frame(double dt,  bool output = false) noexcept;
         void finish_tracking() noexcept;
 
         void save(std::string_view filename, std::vector<std::string_view> extra_fields = {}) noexcept;
@@ -366,7 +366,7 @@ namespace utils
      */
     template<size_t Dimensions = 3>
     requires (Dimensions > 1 && Dimensions < 4)
-    constexpr std::array<glm::vec<Dimensions, float> , 3> gen_tri_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept;
+    constexpr std::array<glm::vec<Dimensions, float> , 3> gen_tri_verts(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept;
 
     enum class GEN_RECT_FACE_VERTS {
         BOTTOM_LEFT,
@@ -392,7 +392,78 @@ namespace utils
      */
     template<size_t Dimensions = 3>
     requires (Dimensions > 1 && Dimensions < 4)
-    constexpr std::array<glm::vec<Dimensions, float>, 4> gen_rect_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept;
+    constexpr std::array<glm::vec<Dimensions, float>, 4> gen_rect_verts(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept;
+
+    /**
+     * @brief Creates the indices for a rectangle face. Assuming verts were provided by gen_rect_verts()
+     * Indices should be provided to the element array buffer.
+     * 
+     * @return constexpr std::array<glm::uvec3, 2> 
+     */
+    constexpr std::array<glm::uvec3, 2> gen_rect_indices() noexcept;
+
+    enum class GEN_CUBE_VERTS {
+        BACK_BOTTOM_LEFT,
+        BACK_TOP_LEFT,
+        BACK_TOP_RIGHT,
+        BACK_BOTTOM_RIGHT,
+        FRONT_BOTTOM_LEFT,
+        FRONT_TOP_LEFT,
+        FRONT_TOP_RIGHT,
+        FRONT_BOTTOM_RIGHT
+    };
+
+    /**
+     * @brief Creates the vertices for a cube using the two given points.
+     * * NOTE: Needs an element array buffer whem generating the cube. 
+     * 
+     * @param start the bottom left back point
+     * @param end the front right top point
+     * @return constexpr std::array<glm::vec3, 8> 
+     */
+    constexpr std::array<glm::vec3, 8> gen_cube_verts(const glm::vec3& start, const glm::vec3& end) noexcept;
+
+    /**
+     * @brief Creates the full vertices for a cube using the two points given.
+     * * NOTE: These vertices are expected to be used with glDrawArrays or without an element array buffer.
+     * Use this function with gen_cube_texcoords_single_face if all sides of the cube will have the same texture face. If any side
+     * will have a different texture use gen_cube_verts, gen_cube_indices and gen_cube_texcoords with a cubemap.
+     * 
+     * @param start the bottom left back point
+     * @param end the front right top point
+     * @return constexpr std::array<glm::vec3, 8> 
+     */
+    constexpr auto gen_cube_verts_full(const glm::vec3& start, const glm::vec3& end) noexcept;
+
+    /**
+     * @brief Creates the indices for a cubes faces. Assuming verts were provided by gen_cube_verts()
+     * Indices should be provided to the element array buffer.
+     * 
+     * @return constexpr std::array<glm::uvec3, 12> 
+     */
+    constexpr std::array<glm::uvec3, 12> gen_cube_indices() noexcept;
+
+    /**
+     * @brief Creates the texture coordinates for a cube. Assuming verts were provided by gen_cube_verts()
+     * and that a cubemap is being used. 
+     * * NOTE: If same texture is on all sides of the cube, use gen_cube_verts_full and gen_cube_texcoords_single_face
+     * TODO: finish function.
+     * 
+     * @return constexpr std::array<glm::vec2, 8> 
+     */
+    constexpr std::array<glm::vec2, 8> gen_cube_texcoords() noexcept;
+
+    /**
+     * @brief Creates the texture coordinates for a cube. Assuming verts were provided by gen_cube_verts_full()
+     * and the same texture is used for all sides of the cube.
+     * * NOTE: If even one side of the cube uses a different texture switch to a cubemap and gen_cube_verts()
+     * * along with gen_cube_indices() and gen_cube_texcoords()
+     * 
+     * @param start The bottom left coordinate. Default is (0.0f, 0.0f).
+     * @param end The top right coordinate. Default is (1.0f, 1.0f).
+     * @return constexpr std::array<glm::vec2, 36> 
+     */
+    constexpr auto gen_cube_texcoords_single_face(const glm::vec2& start = glm::vec2{0.0f}, const glm::vec2& end = glm::vec2{1.0f}) noexcept;
 
 } // namespace utils
 

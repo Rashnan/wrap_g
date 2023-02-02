@@ -93,25 +93,22 @@ namespace wrap_g
     };
 
     template<typename Fn>
-    concept CursorPositionCallback = requires(Fn fn, GLFWwindow* win, GLdouble x, GLdouble y)
+    concept CursorPositionCallback = requires(Fn fn, GLFWwindow *win, GLdouble x, GLdouble y)
     {
         fn(win, x, y);
     };
 
+    template<typename Fn>
+    concept ScrollCallback = requires(Fn fn, GLFWwindow *win, GLdouble dx, GLdouble dy)
+    {
+        fn(win, dx, dy);
+    };
+
     template <typename Fn>
-    concept MouseButtonCallback = requires(Fn fn, GLFWwindow* win, int button, int action, int mods)
+    concept MouseButtonCallback = requires(Fn fn, GLFWwindow *win, int button, int action, int mods)
     {
         fn(win, button, action, mods);
     };
-
-    template<bool async = false>
-    struct __wrap_g_prog_quick_ret { typedef bool type; };
-    
-    template<>
-    struct __wrap_g_prog_quick_ret<true> { typedef std::future<bool> type; };
-
-    template<bool async>
-    using __wrap_g_prog_quick_ret_t = __wrap_g_prog_quick_ret<async>::type;
 
     ////////
     // declarations
@@ -123,6 +120,7 @@ namespace wrap_g
     /**
      * @brief A simple wrapper for opengl functions with glfw and glad. Can only be initialized for one version
      * of opengl.
+     * * In general most glfw callbacks will be from wrap_g or from window
      *
      */
     class wrap_g
@@ -190,6 +188,7 @@ namespace wrap_g
 
     /**
      * @brief A simple window object.
+     * * In general most glfw callbacks will be from wrap_g or from window
      *
      */
     class window
@@ -261,6 +260,12 @@ namespace wrap_g
          * @param button the mouse button in question ex: GLFW_MOUSE_BUTTON_LEFT
         */
         [[nodiscard]] inline int get_mouse_button(int button) const noexcept { return glfwGetMouseButton(m_win, button); }
+
+        /**
+         * @brief gets whether a specific key in the keyboard was pressed.
+         * @param key the key to check
+         */
+        [[nodiscard]] inline int get_key(int key) const noexcept { return glfwGetKey(m_win, key); }
 
         /**
          * @brief Set the framebuffer size callback.

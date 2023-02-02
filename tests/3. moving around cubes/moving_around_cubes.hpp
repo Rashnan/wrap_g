@@ -9,7 +9,7 @@
 
 namespace wrap_tests
 {
-    
+
 void create_moving_around_cubes() noexcept
 {
 #if WRAP_G_DEBUG
@@ -29,7 +29,7 @@ void create_moving_around_cubes() noexcept
     // height: 600
     // title: "Triangle Test Window."
     // underlying function also checks to see if glad is valid
-    auto win = graphics.create_window(800, 600, "Moving Around Cubes Test Window.");
+    auto win = graphics.create_window(800, 600, "Textured Rect Test Window.");
 
     // check if underlying GLFWwindow* is valid
     if (win.win() == nullptr)
@@ -87,38 +87,103 @@ void create_moving_around_cubes() noexcept
     ////
     // startup code
 
+    // logic
+
+    // positions of all the cubes
+    auto cube_positions = std::array{
+        glm::vec3( 0.0f,  0.0f,   0.0f),
+        glm::vec3( 2.0f,  5.0f, -15.0f),
+        glm::vec3(-1.5f, -2.2f,  -2.5f),
+        glm::vec3(-3.8f, -2.0f, -12.3f),
+        glm::vec3( 2.4f, -0.4f,  -3.5f),
+        glm::vec3(-1.7f,  3.0f,  -7.5f),
+        glm::vec3( 1.3f, -2.0f,  -2.5f),
+        glm::vec3( 1.5f,  2.0f,  -2.5f),
+        glm::vec3( 1.5f,  0.2f,  -1.5f),
+        glm::vec3(-1.3f,  1.0f,  -1.5f),
+    };
+
+    // the tex mix determines how much the first/second texture will be visible
+    // if tex mix is 1.0 then second texture is visible
+    // if tex mix is 0.0 then first texture is visible
+    // if tex mix is greater than 1.0 then a negative of the first texture will be seen along with the second texture
+    // if tex mix is lesser than 0.0 then a negative of the second texture will be seen along with the first texture
+    // this behaviour can be removed by clamping the tex mix val
+    // the starting value of the tex mix
+    // the tex mix sens determines how much the tex mix will change with user input
+    float starting_tex_mix = 0.5f, tex_mix = starting_tex_mix, tex_mix_sens = 1.0f;
+
+    // gives a glm::vec4 containing the rgba color values
+    constexpr auto blue = utils::hex("#111b24");
+
+    // the starting position of the camera
+    glm::vec3 camera_start_pos = {0.0f, 0.0f, 1.0f};
+    // the current psition of the camera
+    glm::vec3 camera_pos = camera_start_pos;
+    // the position where the camera is focused onto at the start
+    glm::vec3 camera_start_looking_at = {0.0f, 0.0f, 0.0f};
+
+    // the world up vector
+    glm::vec3 world_up = glm::vec3{0.0f, 1.0f, 0.0f};
+    
+    // the three perpendicular axises of the camera: front (dir), right, and up
+    // calculated using right hand rule and cross product
+    glm::vec3 camera_dir = glm::normalize(camera_start_looking_at - camera_start_pos);
+    glm::vec3 camera_right = glm::normalize(glm::cross(camera_dir, world_up));
+    glm::vec3 camera_up = glm::normalize(glm::cross(camera_right, camera_dir));
+    
+    // the pitch and yaw of the camera direction
+    // first mouse determines whether last_x and last_y where set or not
+    // this will be used to calculate camera rotation along with the mouse
+    float camera_pitch = glm::degrees(glm::asin(camera_dir.y));
+    float camera_yaw = glm::degrees(glm::asin(camera_dir.z / glm::cos(glm::radians(camera_pitch))));
+    bool first_mouse = false;
+
+    // float last_x = win.width() / 2.0f, last_y = win.height() / 2.0f;
+    glm::vec2 last_cursor = glm::vec2{win.width(), win.height()} / 2.0f;
+
+    // the fov of the camera at the start
+    float starting_fov = 30.0f;
+    // the current fov
+    float fov = starting_fov;
+    // the various sensitivities
+    // look sens is for camera rotation along with the mouse
+    // movement sens is for camera movement within the world
+    // zoom sens is for camera zoom or fov control
+    float look_sens = 300.0, movement_sens = 10.0, zoom_sens = 100.0;
+
+    // the camera projection and view matrix
+    // the model matrix for a single cube. (all cubes will use this matrix just modified later)
+    glm::mat4 proj{1.0f}, view{1.0f}, model{1.0f};
+    
+    // this would set the projection matrix to be orthographic. *NOTE: zoom would need to be handled differently.
+    // Leftmost visible point is -2 points from camera, then right most (2), then bottom most (-2) and top most (2)
+    // Final two parameters 0.1f is the closest and 10.0f is the furthest visible objects from infront of the camera
+    // proj = glm::ortho<float>(-2, 2, -2, 2, 0.1f, 10.0f);
+    // set a perspective projection with the nearest visible objects being 0.1f infront of the camera
+    // and the furthest being 10.0f from the camera
+    proj = glm::perspective(glm::radians(fov), (float)win.width()/win.height(), 0.1f, 100.0f);
+    view = glm::lookAt(camera_start_pos, camera_start_looking_at, glm::vec3{0.0f, 1.0f, 0.0f});
+
+    // hide the cursor
+    glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // opengl render code
+
     // create a vao to store vertices and a shader program that defines how the vertices appear on the window
     auto vao = win.create_vao();
     auto prog = win.create_program();
     auto tex1 = win.create_texture(GL_TEXTURE_2D);
     auto tex2 = win.create_texture(GL_TEXTURE_2D);
 
-    // creates a 3d rectangle like below in compile time
-    //-         | *********** | (end)
-    //-         | *********** |
-    //-         | *********** |
-    //-         | *********** |
-    //-         | *********** |
-    //- (start) | *********** |
-    constexpr auto verts = utils::gen_rect_face<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
-
+    // creates a 3d cube in compile time
+    // opengl negative z is towards screen
+    
+    constexpr auto verts = utils::gen_cube_verts_full(glm::vec3{0.0f}, glm::vec3{1.0f});
+    
     // creates a 2d coord within the texture map for each vertex
-    constexpr auto tex_coords = utils::gen_rect_face<2>(glm::vec2{0.0f}, glm::vec2{1.0f});
 
-    // mapping the vertices to faces
-    // each uvec3 corresponds to a triangle face
-    constexpr auto indices = std::array{
-        glm::uvec3{
-            utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
-            utils::GEN_RECT_FACE_VERTS::TOP_LEFT,
-            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT
-        },
-        glm::uvec3{
-            utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
-            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT,
-            utils::GEN_RECT_FACE_VERTS::BOTTOM_RIGHT
-        }
-    };
+    constexpr auto tex_coords = utils::gen_cube_texcoords_single_face();
 
     // define_attrib defines an attribute in the shader and enables it
     // (**) inside brackets is paramter number
@@ -130,9 +195,9 @@ void create_moving_around_cubes() noexcept
     vao.define_attrib(0, 0, 3, GL_FLOAT);
     // this paremter is the texture coordinate for each vertex
     vao.define_attrib(1, 1, 2, GL_FLOAT);
-
+    
     // creates an array buffer at binding position 0 (first) of size verts.size() * sizeof(glm::vec3) (second)
-    // and the pointer to it is verts.cbegin() (third) and the flag enabled is GL_MAP_READ_BIT (fourth)
+    // and the pointer to it is verts.data() (third) and the flag enabled is GL_MAP_READ_BIT (fourth)
     // offset from pointer is 0 (default fifth)
     // underlying:
     // - creates array buffer
@@ -145,26 +210,10 @@ void create_moving_around_cubes() noexcept
     // * stride can be manually set using a GLsizei argument between the data pointer and the flag
     // ! be careful as this may cause headaches if set incorrectly
     // creates the buffer for the vertex positions
-    vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.cbegin(), GL_MAP_READ_BIT);
+    vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.data(), GL_MAP_READ_BIT);
+    
     // creates the buffer for the texture coordinates
-    vao.create_array_buffer<const glm::vec2>(1, tex_coords.size() * sizeof(glm::vec2), tex_coords.cbegin(), GL_MAP_READ_BIT);
-
-    // creates an element array buffer of size indices.size() * sizeof(glm::uvec3) (first)
-    // and the pointer to it is indices.cbegin() (second) and the flag enabled is GL_MAP_READ_BIT (third)
-    // offset from pointer is 0 (default fourth)
-    // underlying:
-    // - creates an element array buffer
-    // - creates fixed size storage (opengl 4.5+)
-    // - creates variable size storage (opengl 3.3+ & 4.3+)
-    // - binds the buffer to the vertex array object
-    // - stores id of buffer to delete at destructor
-    // * template parameter is used to tell the type of the data pointer as this is often known
-    // * in compile time. Setting this parameter explicitly is not importatnt as it is not used
-    // * for any purpose in the uderlying functions in opengl 4.5+ ad opengl 3.3
-    // * for opengl 4.3+ there is a difference but unsure.
-    // TODO: update
-    vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.cbegin(), GL_MAP_READ_BIT);
-    constexpr size_t indices_size = indices.size();
+    vao.create_array_buffer<const glm::vec2>(1, tex_coords.size() * sizeof(glm::vec2), tex_coords.data(), GL_MAP_READ_BIT);
 
     // GL_TEXTURE_WRAP indicates what would happen if texture coords go outside of range (0.0, 0.0) and (1.0, 1.0)
     // rst -> xyz
@@ -207,7 +256,7 @@ void create_moving_around_cubes() noexcept
 #endif
     if (!success)
         return;
-
+        
     // ensure sampler2D uniform is provided as an int and is the same as 
     // the unit the texture is bound to.
     prog.set_uniform<int>(prog.uniform_location("tex1"), 0);
@@ -216,25 +265,17 @@ void create_moving_around_cubes() noexcept
     // the unit the texture is bound to.
     prog.set_uniform<int>(prog.uniform_location("tex2"), 1);
 
-#if WRAP_G_MULTITHREADING
-    std::mutex tex_mix_guard;
-#endif
-
-    float tex_mix = 0.5f, tex_mix_sens = 0.01f;
     int tex_mix_loc = prog.uniform_location("tex_mix");
     prog.set_uniform<float>(tex_mix_loc, tex_mix);
+    
+    int proj_loc = prog.uniform_location("proj"),
+        view_loc = prog.uniform_location("view"),
+        model_loc = prog.uniform_location("model");
 
-    // gives a glm::vec4 containing the rgba color values
-    constexpr auto blue = utils::hex("#111b24");
-    constexpr auto yellow = utils::hex("#d2cb7f");
-
-    // sets vector uniform
-    // first template argument determines vector length
-    // glm::value_ptr gets the pointer of the glm::vec4
-    // in practice use uniform_locations or uniform_location to store location of uniforms
-    // at initialization for readily changing uniforms
-    prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
-
+    prog.set_uniform_mat<4>(proj_loc, glm::value_ptr(proj));
+    prog.set_uniform_mat<4>(view_loc, glm::value_ptr(view));
+    prog.set_uniform_mat<4>(model_loc, glm::value_ptr(model));
+    
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
     ////
     // Resource Fetching Threads Done
@@ -299,6 +340,8 @@ void create_moving_around_cubes() noexcept
         tex2.gen_mipmap();
     }
 
+    glEnable(GL_DEPTH_TEST);
+
 #if WRAP_G_DEBUG
         std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
 #endif
@@ -307,48 +350,184 @@ void create_moving_around_cubes() noexcept
         utils::metrics tracker;
         tracker.start_tracking();
 #endif
+        float dt = 0.01;
+
         while (!win.get_should_close())
         {
+            ////
+            // event handling
+            
             // get events such as mouse input
             // checks every time for event
             glfwPollEvents();
 
-            // press S to make the second image more visible
-            // press S with shift to make first image more visible
-            if (glfwGetKey(win.win(), GLFW_KEY_S) == GLFW_PRESS) {
-                tex_mix += (glfwGetKey(win.win(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens;
+            // look direction
+            // rotate camera along with mouse rotation
+            // but only if user is pressing left click
+            if (win.get_mouse_button(GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+            {
+                auto cursor = win.get_cursor_position();
+                
+                if (first_mouse)
+                {
+                    // basically ignore first mouse
+                    first_mouse = false;
+                }
+                else
+                {
+                    // calculate how far the mouse is from last position
+                    glm::vec2 cursor_offset = glm::vec2{cursor.first, cursor.second} - last_cursor;
+                    // y axis is flipped as y is measured from top to bottom
+                    // top of screen is y=0 when we get the cursor position
+                    cursor_offset *= glm::vec2{1, -1} * look_sens * dt;
+
+                    // using radial coords in 3d to calculate the new forward direction
+                    camera_yaw += cursor_offset.x;
+                    camera_pitch += cursor_offset.y;
+                    camera_pitch = glm::clamp(camera_pitch, -89.0f, 89.0f);
+
+                    camera_dir = glm::normalize(glm::vec3{
+                        glm::cos(glm::radians(camera_yaw)) * glm::cos(glm::radians(camera_pitch)),
+                        glm::sin(glm::radians(camera_pitch)),
+                        glm::sin(glm::radians(camera_yaw)) * glm::cos(glm::radians(camera_pitch))
+                    });
+                    
+                    // calculating other axes
+                    camera_right = glm::normalize(glm::cross(camera_dir, world_up));
+                    camera_up = glm::normalize(glm::cross(camera_right, camera_dir));
+
+                    // calculate view matrix
+                    view = glm::lookAt(camera_pos, camera_pos + camera_dir, glm::vec3{0.0f, 1.0f, 0.0f});
+                }
+
+                // update last cursor position
+                last_cursor = glm::vec2{cursor.first, cursor.second};
+            }
+
+            // movement
+
+            // move left
+            if (win.get_key(GLFW_KEY_A) == GLFW_PRESS)
+            {
+                auto offest = - camera_right * movement_sens * dt;
+                camera_pos += offest;
+                view = glm::translate(view, - offest);
+            }
+
+            // move right
+            if (win.get_key(GLFW_KEY_D) == GLFW_PRESS)
+            {
+                auto offset = camera_right * movement_sens * dt;
+                camera_pos += offset;
+                view = glm::translate(view, - offset);
+            }
+            
+            // move forward
+            if (win.get_key(GLFW_KEY_W) == GLFW_PRESS)
+            {
+                auto offset = camera_dir * movement_sens * dt;
+                camera_pos += offset;
+                view = glm::translate(view, - offset);
+            }
+
+            // move backward
+            if (win.get_key(GLFW_KEY_S) == GLFW_PRESS)
+            {
+                auto offset = - camera_dir * movement_sens * dt;
+                camera_pos += offset;
+                view = glm::translate(view, - offset);
+            }
+            
+            // move upwards
+            if (win.get_key(GLFW_KEY_SPACE) == GLFW_PRESS)
+            {
+                auto offset = camera_up * movement_sens * dt;
+                camera_pos += offset;
+                view = glm::translate(view, - offset);
+            }
+
+            // move downwards
+            if (win.get_key(GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+            {
+                auto offset = - camera_up * movement_sens * dt;
+                camera_pos += offset;
+                view = glm::translate(view, - offset);
+            }
+            prog.set_uniform_mat<4>(view_loc, glm::value_ptr(view));
+
+            // press M to make the second image more visible
+            // press M with shift to make first image more visible
+            if (win.get_key(GLFW_KEY_M) == GLFW_PRESS)
+            {
+                tex_mix += (win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens * dt;
                 prog.set_uniform<float>(tex_mix_loc, tex_mix);
             }
 
-#if WRAP_G_DEBUG
+            // zoom event
+            if (win.get_key(GLFW_KEY_Z) == GLFW_PRESS)
+            {
+                fov -= (win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * zoom_sens * dt;
+                fov = glm::clamp(fov, 1.0f, 45.0f);
+                proj = glm::perspective(glm::radians(fov), (float)win.width()/win.height(), 0.1f, 100.0f);
+                prog.set_uniform_mat<4>(proj_loc, glm::value_ptr(proj));
+            }
+
+            // * Reset all variables to their original values
+            // * This includes position and cursor position and tex mix
+            if (win.get_key(GLFW_KEY_R) == GLFW_PRESS)
+            {
+                glfwSetCursorPos(win.win(), (double)win.width() / 2.0, (double)win.height() / 2.0);
+                first_mouse = true;
+                camera_pos = camera_start_pos;
+                camera_dir = camera_start_looking_at - camera_start_pos;
+                
+                camera_right = glm::normalize(glm::cross(camera_dir, world_up));
+                camera_up = glm::normalize(glm::cross(camera_right, camera_dir));
+                
+                camera_pitch = glm::degrees(glm::asin(camera_dir.y));
+                camera_yaw = glm::degrees(glm::asin(camera_dir.z / glm::cos(glm::radians(camera_pitch))));
+                view = glm::lookAt(camera_start_pos, camera_start_looking_at, glm::vec3{0.0f, 1.0f, 0.0f});
+                
+                prog.set_uniform_mat<4>(view_loc, glm::value_ptr(view));
+
+                fov = starting_fov;
+                proj = glm::perspective(glm::radians(fov), (float)win.width()/win.height(), 0.1f, 10.0f);
+                prog.set_uniform_mat<4>(proj_loc, glm::value_ptr(proj));
+
+                tex_mix = starting_tex_mix;
+                prog.set_uniform<float>(tex_mix_loc, tex_mix);
+            }
+
             watch.start();
-#endif
+
+            ////
+            // rendering
 
             // set the color that will be used when glClear is called on the color buffer bit
             glClearColor(blue.r, blue.g, blue.b, blue.a);
-            
-            glClear(GL_COLOR_BUFFER_BIT);
 
             // use this instead of above to enable 3d depth testing
-            // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            // glEnable(GL_DEPTH_TEST);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // bind vao and shader program before issuing draw call
             vao.bind();
             prog.use();
-            
-            // since we are also using an element array buffer we must use this instead
-            // count of indices is already set when we created the element array buffer
-            // nullptr (fourth) is used as the pointer to the element array buffer
-            // in case we have not already provided it
-            glDrawElements(GL_TRIANGLES, indices_size * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
 
+            for (size_t i = 0; i < cube_positions.size(); ++i)
+            {
+                model = glm::translate(glm::mat4{1.0f}, cube_positions[i]);
+                prog.set_uniform_mat<4>(model_loc, glm::value_ptr(model));
+                glDrawArrays(GL_TRIANGLES, 0, verts.size());
+            }
+            
             // swap the buffers to show the newly drawn frame
             win.swap_buffers();
 
+            dt = watch.stop();
 #if WRAP_G_DEBUG
-            tracker.track_frame(watch.stop());
+            tracker.track_frame(dt);
 #endif
+            dt = glm::clamp(dt, 0.0001f, 0.01f);
         }
 #if WRAP_G_DEBUG
         tracker.finish_tracking();

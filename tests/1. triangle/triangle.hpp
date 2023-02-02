@@ -89,7 +89,7 @@ void create_triangle() noexcept
     //-         |   *******   |
     //-         |  *********  |
     //- (start) | *********** |
-    constexpr auto verts = utils::gen_tri_face<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
+    constexpr auto verts = utils::gen_tri_verts<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
 
     // define_attrib defines an attribute in the shader and enables it
     // (**) inside brackets is paramter number
@@ -100,7 +100,7 @@ void create_triangle() noexcept
     vao.define_attrib(0, 0, 3, GL_FLOAT);
 
     // creates an array buffer at binding position 0 (first) of size verts.size() * sizeof(glm::vec3) (second)
-    // and the pointer to it is verts.cbegin() (third) and the flag enabled is GL_MAP_READ_BIT (fourth)
+    // and the pointer to it is verts.data() (third) and the flag enabled is GL_MAP_READ_BIT (fourth)
     // offset from pointer is 0 (default fifth)
     // underlying:
     // - creates array buffer
@@ -111,7 +111,7 @@ void create_triangle() noexcept
     // * template parameter is used to tell the stride.. distance between vertices in memory
     // * as this is often known at compile time.
     // ! be careful as this may cause headaches if set incorrectly
-    vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.cbegin(), GL_MAP_READ_BIT);
+    vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.data(), GL_MAP_READ_BIT);
     constexpr size_t verts_size = verts.size();
 
     // The quick method is used to compile and link provided shader files
@@ -184,6 +184,7 @@ void create_triangle() noexcept
 
         // use this instead of above to enable 3d depth testing
         // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // glEnable outside loop
         // glEnable(GL_DEPTH_TEST);
 
         // bind vao and shader program before issuing draw call

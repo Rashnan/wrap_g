@@ -100,25 +100,14 @@ void create_textured_rect() noexcept
     //-         | *********** |
     //-         | *********** |
     //- (start) | *********** |
-    constexpr auto verts = utils::gen_rect_face<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
+    constexpr auto verts = utils::gen_rect_verts<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
 
     // creates a 2d coord within the texture map for each vertex
-    constexpr auto tex_coords = utils::gen_rect_face<2>(glm::vec2{0.0f}, glm::vec2{1.0f});
+    constexpr auto tex_coords = utils::gen_rect_verts<2>(glm::vec2{0.0f}, glm::vec2{1.0f});
 
     // mapping the vertices to faces
     // each uvec3 corresponds to a triangle face
-    constexpr auto indices = std::array{
-        glm::uvec3{
-            utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
-            utils::GEN_RECT_FACE_VERTS::TOP_LEFT,
-            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT
-        },
-        glm::uvec3{
-            utils::GEN_RECT_FACE_VERTS::BOTTOM_LEFT,
-            utils::GEN_RECT_FACE_VERTS::TOP_RIGHT,
-            utils::GEN_RECT_FACE_VERTS::BOTTOM_RIGHT
-        }
-    };
+    constexpr auto indices = utils::gen_rect_indices();
 
     // define_attrib defines an attribute in the shader and enables it
     // (**) inside brackets is paramter number
@@ -132,7 +121,7 @@ void create_textured_rect() noexcept
     vao.define_attrib(1, 1, 2, GL_FLOAT);
 
     // creates an array buffer at binding position 0 (first) of size verts.size() * sizeof(glm::vec3) (second)
-    // and the pointer to it is verts.cbegin() (third) and the flag enabled is GL_MAP_READ_BIT (fourth)
+    // and the pointer to it is verts.data() (third) and the flag enabled is GL_MAP_READ_BIT (fourth)
     // offset from pointer is 0 (default fifth)
     // underlying:
     // - creates array buffer
@@ -145,12 +134,12 @@ void create_textured_rect() noexcept
     // * stride can be manually set using a GLsizei argument between the data pointer and the flag
     // ! be careful as this may cause headaches if set incorrectly
     // creates the buffer for the vertex positions
-    vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.cbegin(), GL_MAP_READ_BIT);
+    vao.create_array_buffer<const glm::vec3>(0, verts.size() * sizeof(glm::vec3), verts.data(), GL_MAP_READ_BIT);
     // creates the buffer for the texture coordinates
-    vao.create_array_buffer<const glm::vec2>(1, tex_coords.size() * sizeof(glm::vec2), tex_coords.cbegin(), GL_MAP_READ_BIT);
+    vao.create_array_buffer<const glm::vec2>(1, tex_coords.size() * sizeof(glm::vec2), tex_coords.data(), GL_MAP_READ_BIT);
 
     // creates an element array buffer of size indices.size() * sizeof(glm::uvec3) (first)
-    // and the pointer to it is indices.cbegin() (second) and the flag enabled is GL_MAP_READ_BIT (third)
+    // and the pointer to it is indices.data() (second) and the flag enabled is GL_MAP_READ_BIT (third)
     // offset from pointer is 0 (default fourth)
     // underlying:
     // - creates an element array buffer
@@ -163,7 +152,7 @@ void create_textured_rect() noexcept
     // * for any purpose in the uderlying functions in opengl 4.5+ ad opengl 3.3
     // * for opengl 4.3+ there is a difference but unsure.
     // TODO: update
-    vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.cbegin(), GL_MAP_READ_BIT);
+    vao.create_element_buffer<const glm::uvec3>(indices.size() * sizeof(glm::uvec3), indices.data(), GL_MAP_READ_BIT);
     constexpr size_t indices_size = indices.size();
 
     // GL_TEXTURE_WRAP indicates what would happen if texture coords go outside of range (0.0, 0.0) and (1.0, 1.0)
@@ -216,24 +205,12 @@ void create_textured_rect() noexcept
     // the unit the texture is bound to.
     prog.set_uniform<int>(prog.uniform_location("tex2"), 1);
 
-#if WRAP_G_MULTITHREADING
-    std::mutex tex_mix_guard;
-#endif
-
     float tex_mix = 0.5f, tex_mix_sens = 0.01f;
     int tex_mix_loc = prog.uniform_location("tex_mix");
     prog.set_uniform<float>(tex_mix_loc, tex_mix);
 
     // gives a glm::vec4 containing the rgba color values
     constexpr auto blue = utils::hex("#111b24");
-    constexpr auto yellow = utils::hex("#d2cb7f");
-
-    // sets vector uniform
-    // first template argument determines vector length
-    // glm::value_ptr gets the pointer of the glm::vec4
-    // in practice use uniform_locations or uniform_location to store location of uniforms
-    // at initialization for readily changing uniforms
-    prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
 
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
     ////
@@ -331,6 +308,7 @@ void create_textured_rect() noexcept
 
             // use this instead of above to enable 3d depth testing
             // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            // glEnable outside loop
             // glEnable(GL_DEPTH_TEST);
 
             // bind vao and shader program before issuing draw call

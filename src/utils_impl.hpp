@@ -701,13 +701,14 @@ namespace utils
         m_out << "[metrcis] Debug: Starting tracking.\n";
     }
 
-    void metrics::track_frame(double dt) noexcept
+    void metrics::track_frame(double dt, bool output) noexcept
     {
         ++m_frames;
         m_last_time = dt;
         m_total_time += dt;
 
-        m_out << "[metrcis] Debug: FPS: " << 1e3 / m_last_time << ", Frame render took " << m_last_time << " ms.\n";
+        if (output)
+            m_out << "[metrcis] Debug: FPS: " << 1e3 / m_last_time << ", Frame render took " << m_last_time << " ms.\n";
     }
 
     void metrics::finish_tracking() noexcept
@@ -1024,7 +1025,7 @@ namespace utils
 
     template<size_t Dimensions>
     requires (Dimensions > 1 && Dimensions < 4)
-    constexpr std::array<glm::vec<Dimensions, float>, 3> gen_tri_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept
+    constexpr std::array<glm::vec<Dimensions, float>, 3> gen_tri_verts(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept
     {
         if constexpr (Dimensions == 2) {
             return {
@@ -1044,7 +1045,7 @@ namespace utils
 
     template<size_t Dimensions>
     requires (Dimensions > 1 && Dimensions < 4)
-    constexpr std::array<glm::vec<Dimensions, float>, 4> gen_rect_face(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept
+    constexpr std::array<glm::vec<Dimensions, float>, 4> gen_rect_verts(const glm::vec<Dimensions, float> &start, const glm::vec<Dimensions, float> &end) noexcept
     {
         if constexpr (Dimensions == 2) {
             return {
@@ -1062,6 +1063,238 @@ namespace utils
                 glm::vec3{end.x, start.y, end.z},
             };
         }
+    }
+
+    constexpr std::array<glm::uvec3, 2> gen_rect_indices() noexcept
+    {
+        using V = utils::GEN_RECT_FACE_VERTS;
+
+        return std::array{
+            glm::uvec3{
+                V::BOTTOM_LEFT,
+                V::TOP_LEFT,
+                V::TOP_RIGHT
+            },
+            glm::uvec3{
+                V::BOTTOM_LEFT,
+                V::TOP_RIGHT,
+                V::BOTTOM_RIGHT
+            }
+        };
+    }
+
+    constexpr std::array<glm::vec3, 8> gen_cube_verts(const glm::vec3& start, const glm::vec3& end) noexcept
+    {
+        return {
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{start.x, end.y, start.z},
+            glm::vec3{start.x, end.y, end.z},
+            glm::vec3{start.x, start.y, end.z},
+
+            glm::vec3{end.x, start.y, start.z},
+            glm::vec3{end.x, end.y, start.z},
+            glm::vec3{end.x, end.y, end.z},
+            glm::vec3{end.x, start.y, end.z},
+        };
+    }
+
+    constexpr auto gen_cube_verts_full(const glm::vec3& start, const glm::vec3& end) noexcept
+    {
+        return std::array{
+            // BACK FACE
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{start.x, end.y, start.z},
+            glm::vec3{end.x, end.y, start.z},
+
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{end.x, end.y, start.z},
+            glm::vec3{end.x, start.y, start.z},
+
+            // BOTTOM FACE
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{start.x, start.y, end.z},
+            glm::vec3{end.x, start.y, end.z},
+            
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{end.x, start.y, end.z},
+            glm::vec3{end.x, start.y, start.z},
+
+            // LEFT FACE
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{start.x, end.y, start.z},
+            glm::vec3{start.x, end.y, end.z},
+            
+            glm::vec3{start.x, start.y, start.z},
+            glm::vec3{start.x, end.y, end.z},
+            glm::vec3{start.x, start.y, end.z},
+
+            // reflect on primary axis
+
+            // FRONT FACE
+            glm::vec3{start.x, start.y, end.z},
+            glm::vec3{start.x, end.y, end.z},
+            glm::vec3{end.x, end.y, end.z},
+
+            glm::vec3{start.x, start.y, end.z},
+            glm::vec3{end.x, end.y, end.z},
+            glm::vec3{end.x, start.y, end.z},
+
+            // TOP FACE
+            glm::vec3{start.x, end.y, start.z},
+            glm::vec3{start.x, end.y, end.z},
+            glm::vec3{end.x, end.y, end.z},
+            
+            glm::vec3{start.x, end.y, start.z},
+            glm::vec3{end.x, end.y, end.z},
+            glm::vec3{end.x, end.y, start.z},
+
+            // RIGHT FACE
+            glm::vec3{end.x, start.y, start.z},
+            glm::vec3{end.x, end.y, start.z},
+            glm::vec3{end.x, end.y, end.z},
+            
+            glm::vec3{end.x, start.y, start.z},
+            glm::vec3{end.x, end.y, end.z},
+            glm::vec3{end.x, start.y, end.z},
+        };
+    }
+
+    constexpr std::array<glm::uvec3, 12> gen_cube_indices() noexcept
+    {
+        using V = utils::GEN_CUBE_VERTS;
+
+        return std::array{
+            // BACK FACE
+            glm::uvec3{
+                V::BACK_BOTTOM_LEFT,
+                V::BACK_TOP_LEFT,
+                V::BACK_TOP_RIGHT
+            },
+            glm::uvec3{
+                V::BACK_BOTTOM_LEFT,
+                V::BACK_TOP_RIGHT,
+                V::BACK_BOTTOM_RIGHT
+            },
+            // BOTTOM FACE
+            glm::uvec3{
+                V::BACK_BOTTOM_LEFT,
+                V::BACK_BOTTOM_RIGHT,
+                V::FRONT_BOTTOM_LEFT,
+            },
+            glm::uvec3{
+                V::FRONT_BOTTOM_LEFT,
+                V::BACK_BOTTOM_RIGHT,
+                V::FRONT_BOTTOM_RIGHT,
+            },
+            // LEFT FACE
+            glm::uvec3{
+                V::BACK_BOTTOM_LEFT,
+                V::BACK_TOP_LEFT,
+                V::FRONT_TOP_LEFT,
+            },
+            glm::uvec3{
+                V::BACK_BOTTOM_LEFT,
+                V::FRONT_TOP_LEFT,
+                V::FRONT_BOTTOM_LEFT,
+            },
+
+            // Refect on primary axis
+
+            // FRONT FACE
+            glm::uvec3{
+                V::FRONT_BOTTOM_LEFT,
+                V::FRONT_TOP_LEFT,
+                V::FRONT_TOP_RIGHT
+            },
+            glm::uvec3{
+                V::FRONT_BOTTOM_LEFT,
+                V::FRONT_TOP_RIGHT,
+                V::FRONT_BOTTOM_RIGHT
+            },
+            // TOP FACE
+            glm::uvec3{
+                V::BACK_TOP_LEFT,
+                V::BACK_TOP_RIGHT,
+                V::FRONT_TOP_LEFT,
+            },
+            glm::uvec3{
+                V::FRONT_TOP_LEFT,
+                V::BACK_TOP_RIGHT,
+                V::FRONT_TOP_RIGHT,
+            },
+            // RIGHT FACE
+            glm::uvec3{
+                V::BACK_BOTTOM_RIGHT,
+                V::BACK_TOP_RIGHT,
+                V::FRONT_TOP_RIGHT,
+            },
+            glm::uvec3{
+                V::BACK_BOTTOM_RIGHT,
+                V::FRONT_TOP_RIGHT,
+                V::FRONT_BOTTOM_RIGHT,
+            }
+        };
+    }
+
+    constexpr auto gen_cube_texcoords_single_face(const glm::vec2& start, const glm::vec2& end) noexcept
+    {
+        return std::array{
+            // BACK FACE
+            glm::vec2{start.x, start.y},
+            glm::vec2{start.x, end.y},
+            glm::vec2{end.x, end.y},
+            
+            glm::vec2{start.x, start.y},
+            glm::vec2{end.x, end.y},
+            glm::vec2{end.x, start.y},
+
+            // BOTTOM FACE
+            glm::vec2{start.x, start.y},
+            glm::vec2{start.x, end.y},
+            glm::vec2{end.x, end.y},
+            
+            glm::vec2{start.x, start.y},
+            glm::vec2{end.x, end.y},
+            glm::vec2{end.x, start.y},
+
+            // LEFT FACE
+            glm::vec2{start.x, start.y},
+            glm::vec2{start.x, end.y},
+            glm::vec2{end.x, end.y},
+            
+            glm::vec2{start.x, start.y},
+            glm::vec2{end.x, end.y},
+            glm::vec2{end.x, start.y},
+
+            // reflect on primary axis
+            
+            // FRONT FACE
+            glm::vec2{start.x, start.y},
+            glm::vec2{start.x, end.y},
+            glm::vec2{end.x, end.y},
+            
+            glm::vec2{start.x, start.y},
+            glm::vec2{end.x, end.y},
+            glm::vec2{end.x, start.y},
+
+            // TOP FACE
+            glm::vec2{start.x, start.y},
+            glm::vec2{start.x, end.y},
+            glm::vec2{end.x, end.y},
+            
+            glm::vec2{start.x, start.y},
+            glm::vec2{end.x, end.y},
+            glm::vec2{end.x, start.y},
+
+            // RIGHT FACE
+            glm::vec2{start.x, start.y},
+            glm::vec2{start.x, end.y},
+            glm::vec2{end.x, end.y},
+            
+            glm::vec2{start.x, start.y},
+            glm::vec2{end.x, end.y},
+            glm::vec2{end.x, start.y},
+        };
     }
 
 } // namespace utils
