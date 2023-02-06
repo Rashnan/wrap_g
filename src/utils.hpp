@@ -11,6 +11,7 @@
 #include <random>
 #include <concepts>
 #include <future>
+#include <utility>
 
 // glm
 #include <glm/glm.hpp>
@@ -42,6 +43,9 @@ namespace utils
 
     template <typename T, typename... Ts>
     concept is_one_of = (std::is_same_v<T, Ts> || ...);
+
+    template<typename T>
+    concept CString = std::is_same_v<std::remove_cv_t<T>, char *>;
 
     template <typename T>
     concept Stringable = std::convertible_to<T, std::string_view>;
@@ -313,11 +317,21 @@ namespace utils
     requires std::swappable<T>
     void flip_array2d(size_t width, size_t height, T *ptr, bool horizontally = false, bool vertically = false) noexcept;
 
+    glm::vec3 right(const glm::mat4& mat) noexcept;
+    glm::vec3 up(const glm::mat4& mat) noexcept;
+    glm::vec3 front(const glm::mat4& mat) noexcept;
+    glm::vec3 position(const glm::mat4& mat) noexcept;
+
     template <typename T>
     requires std::equality_comparable<T>
     bool one_of(const T &val, const std::initializer_list<T> &list) noexcept;
-
-    consteval glm::vec4 rgba(int&& r, int&& g, int&& b, float&& a = 1.0) noexcept;
+    
+    template<typename T, typename U, typename V, typename W = float>
+    requires (std::is_floating_point_v<T> || std::is_integral_v<T>)
+        && (std::is_floating_point_v<U> || std::is_integral_v<U>)
+        && (std::is_floating_point_v<V> || std::is_integral_v<V>)
+        && (std::is_floating_point_v<W> || std::is_integral_v<W>)
+    consteval glm::vec4 rgba(T&& r, U&& g, V&& b, W&& a = 1.0f) noexcept;
     
     // hex code with #AAAAAA to rgba floats
     // TODO add alpha #rrggbbaa
@@ -340,6 +354,11 @@ namespace utils
     template <typename T, typename Fn>
     requires PrintableFn<T, Fn>
     void print(const T* ptr, Fn fn) noexcept;
+
+    // https://en.cppreference.com/w/cpp/language/fold
+    template<typename ... Ts>
+    requires (Printable<Ts> && ...)
+    void print_all(const Ts&... args);
 
     /////
     // 2d & 3d world stuff
@@ -402,27 +421,6 @@ namespace utils
      */
     constexpr std::array<glm::uvec3, 2> gen_rect_indices() noexcept;
 
-    enum class GEN_CUBE_VERTS {
-        BACK_BOTTOM_LEFT,
-        BACK_TOP_LEFT,
-        BACK_TOP_RIGHT,
-        BACK_BOTTOM_RIGHT,
-        FRONT_BOTTOM_LEFT,
-        FRONT_TOP_LEFT,
-        FRONT_TOP_RIGHT,
-        FRONT_BOTTOM_RIGHT
-    };
-
-    /**
-     * @brief Creates the vertices for a cube using the two given points.
-     * * NOTE: Needs an element array buffer whem generating the cube. 
-     * 
-     * @param start the bottom left back point
-     * @param end the front right top point
-     * @return constexpr std::array<glm::vec3, 8> 
-     */
-    constexpr std::array<glm::vec3, 8> gen_cube_verts(const glm::vec3& start, const glm::vec3& end) noexcept;
-
     /**
      * @brief Creates the full vertices for a cube using the two points given.
      * * NOTE: These vertices are expected to be used with glDrawArrays or without an element array buffer.
@@ -431,39 +429,30 @@ namespace utils
      * 
      * @param start the bottom left back point
      * @param end the front right top point
-     * @return constexpr std::array<glm::vec3, 8> 
+     * @return constexpr std::array<glm::vec3, 36>
      */
-    constexpr auto gen_cube_verts_full(const glm::vec3& start, const glm::vec3& end) noexcept;
-
-    /**
-     * @brief Creates the indices for a cubes faces. Assuming verts were provided by gen_cube_verts()
-     * Indices should be provided to the element array buffer.
-     * 
-     * @return constexpr std::array<glm::uvec3, 12> 
-     */
-    constexpr std::array<glm::uvec3, 12> gen_cube_indices() noexcept;
+    constexpr std::array<glm::vec3, 36> gen_cube_verts(const glm::vec3& start, const glm::vec3& end) noexcept;
 
     /**
      * @brief Creates the texture coordinates for a cube. Assuming verts were provided by gen_cube_verts()
-     * and that a cubemap is being used. 
-     * * NOTE: If same texture is on all sides of the cube, use gen_cube_verts_full and gen_cube_texcoords_single_face
-     * TODO: finish function.
+     * and that a cubemap is being used. Assummed  that the cubemap texture is similar to a uv unwrapped
+     * and uncompressed cube.
+     * * NOTE: If same texture is on all sides of the cube and gen_cube_texcoords_single_face
      * 
-     * @return constexpr std::array<glm::vec2, 8> 
+     * @return constexpr std::array<glm::vec2, 36>
      */
-    constexpr std::array<glm::vec2, 8> gen_cube_texcoords() noexcept;
+    constexpr std::array<glm::vec2, 36> gen_cube_texcoords() noexcept;
 
     /**
-     * @brief Creates the texture coordinates for a cube. Assuming verts were provided by gen_cube_verts_full()
+     * @brief Creates the texture coordinates for a cube. Assuming verts were provided by gen_cube_verts()
      * and the same texture is used for all sides of the cube.
-     * * NOTE: If even one side of the cube uses a different texture switch to a cubemap and gen_cube_verts()
-     * * along with gen_cube_indices() and gen_cube_texcoords()
+     * * NOTE: If even one side of the cube uses a different texture switch to gen_cube_texcoords()
      * 
      * @param start The bottom left coordinate. Default is (0.0f, 0.0f).
      * @param end The top right coordinate. Default is (1.0f, 1.0f).
      * @return constexpr std::array<glm::vec2, 36> 
      */
-    constexpr auto gen_cube_texcoords_single_face(const glm::vec2& start = glm::vec2{0.0f}, const glm::vec2& end = glm::vec2{1.0f}) noexcept;
+    constexpr std::array<glm::vec2, 36> gen_cube_texcoords_single_face(const glm::vec2& start = glm::vec2{0.0f}, const glm::vec2& end = glm::vec2{1.0f}) noexcept;
 
 } // namespace utils
 

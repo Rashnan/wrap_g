@@ -226,25 +226,25 @@ namespace wrap_g
                 switch (severity)
                 {
                 case GL_DEBUG_SEVERITY_NOTIFICATION:
-                    ss << " notify : ";
+                    ss << "notify ";
                     break;
                 case GL_DEBUG_SEVERITY_LOW:
-                    ss << " info : ";
+                    ss << "info ";
                     break;
                 case GL_DEBUG_SEVERITY_MEDIUM:
-                    ss << " medium : ";
+                    ss << "medium ";
                     break;
                 case GL_DEBUG_SEVERITY_HIGH:
-                    ss << " IMPORTANT : ";
+                    ss << "IMPORTANT ";
                     break;
                 case GL_DONT_CARE:
                 default:
-                    ss << " unknown : ";
+                    ss << "unknown ";
                     break;
                 }
 
                 // possibly use userid to block messages
-                std::cout << ss.str();
+                std::cout << ss.str() << "#" << id << " : " << message << "\n";
             }, nullptr);
         }
 #endif
@@ -368,25 +368,25 @@ namespace wrap_g
                 switch (severity)
                 {
                 case GL_DEBUG_SEVERITY_NOTIFICATION:
-                    ss << " notify : ";
+                    ss << "notify ";
                     break;
                 case GL_DEBUG_SEVERITY_LOW:
-                    ss << " info : ";
+                    ss << "info ";
                     break;
                 case GL_DEBUG_SEVERITY_MEDIUM:
-                    ss << " medium : ";
+                    ss << "medium ";
                     break;
                 case GL_DEBUG_SEVERITY_HIGH:
-                    ss << " IMPORTANT : ";
+                    ss << "IMPORTANT ";
                     break;
                 case GL_DONT_CARE:
                 default:
-                    ss << " unknown : ";
+                    ss << "unknown ";
                     break;
                 }
 
                 // possibly use userid to block messages
-                std::cout << ss.str();
+                std::cout << ss.str() << "#" << id << " : " << message << "\n";
             }, nullptr);
         }
 #endif
@@ -810,10 +810,12 @@ namespace wrap_g
         glUseProgram(m_id);
     }
 
-    int program::uniform_location(const char *name) const noexcept
+    template<typename String>
+    requires utils::Stringable<String>
+    int program::uniform_location(String name) const noexcept
     {
         // get the location of a uniform in a shader using its name
-        return glGetUniformLocation(m_id, name);
+        return glGetUniformLocation(m_id, ((std::string_view)name).data());
     }
 
     // TODO: check if array version is better
@@ -909,6 +911,7 @@ namespace wrap_g
     }
 
     template <size_t vec_size, typename T>
+    requires std::is_floating_point_v<T>
     void program::set_uniform_vec(int loc, T *val, size_t count) noexcept
     {
         // set the uniform vectors according to the vector size and data type
@@ -962,6 +965,7 @@ namespace wrap_g
     }
 
     template <size_t cols, size_t rows, typename T>
+    requires std::is_floating_point_v<T>
     void program::set_uniform_mat(int loc, T *val, size_t count, bool transpose) noexcept
     {
         // matrix for doubles

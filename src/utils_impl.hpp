@@ -32,7 +32,7 @@ namespace utils
     ////////
     // definitions
     ////////
-
+    
     ////
     // stb_image
 
@@ -909,6 +909,11 @@ namespace utils
         }
     }
 
+    glm::vec3 right(const glm::mat4& mat) noexcept { return {mat[0][0], mat[0][1], mat[0][2]}; }
+    glm::vec3 up(const glm::mat4& mat) noexcept { return {mat[1][0], mat[1][1], mat[1][2]}; }
+    glm::vec3 front(const glm::mat4& mat) noexcept { return {mat[2][0], mat[2][1], mat[2][2]}; }
+    glm::vec3 position(const glm::mat4& mat) noexcept { return {mat[3][0], mat[3][1], mat[3][2]}; }
+
     template <typename T>
     requires std::equality_comparable<T>
     bool one_of(const T &val, const std::initializer_list<T> &list) noexcept
@@ -921,9 +926,27 @@ namespace utils
         return false;
     }
 
-    consteval glm::vec4 rgba(int&& r, int&& g, int&& b, float&& a) noexcept
+    template<typename T, typename U, typename V, typename W>
+    requires (std::is_floating_point_v<T> || std::is_integral_v<T>)
+        && (std::is_floating_point_v<U> || std::is_integral_v<U>)
+        && (std::is_floating_point_v<V> || std::is_integral_v<V>)
+        && (std::is_floating_point_v<W> || std::is_integral_v<W>)
+    consteval glm::vec4 rgba(T&& r, U&& g, V&& b, W&& a) noexcept
     {
-        return glm::vec4((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, a);
+        glm::vec4 col{r, g, b, a};
+        if constexpr (std::is_integral_v<T>) {
+            col.r /= 256.0f;
+        }
+        if constexpr (std::is_integral_v<U>) {
+            col.g /= 256.0f;
+        }
+        if constexpr (std::is_integral_v<V>) {
+            col.b /= 256.0f;
+        }
+        if constexpr (std::is_integral_v<W>) {
+            col.a /= 256.0f;
+        }
+        return col;
     }
 
     consteval glm::vec4 hex(std::string_view&& code) noexcept
@@ -1009,6 +1032,13 @@ namespace utils
         std::cout << "\n";    
     }
 
+    template<typename ... Ts>
+    requires (Printable<Ts> && ...)
+    void print_all(const Ts&... args)
+    {
+        (std::cout << ... << args) << '\n';
+    }
+
     template <typename T>
     requires Printable<T>
     void print(const T *ptr) noexcept
@@ -1083,22 +1113,7 @@ namespace utils
         };
     }
 
-    constexpr std::array<glm::vec3, 8> gen_cube_verts(const glm::vec3& start, const glm::vec3& end) noexcept
-    {
-        return {
-            glm::vec3{start.x, start.y, start.z},
-            glm::vec3{start.x, end.y, start.z},
-            glm::vec3{start.x, end.y, end.z},
-            glm::vec3{start.x, start.y, end.z},
-
-            glm::vec3{end.x, start.y, start.z},
-            glm::vec3{end.x, end.y, start.z},
-            glm::vec3{end.x, end.y, end.z},
-            glm::vec3{end.x, start.y, end.z},
-        };
-    }
-
-    constexpr auto gen_cube_verts_full(const glm::vec3& start, const glm::vec3& end) noexcept
+    constexpr std::array<glm::vec3, 36> gen_cube_verts(const glm::vec3& start, const glm::vec3& end) noexcept
     {
         return std::array{
             // BACK FACE
@@ -1159,84 +1174,82 @@ namespace utils
         };
     }
 
-    constexpr std::array<glm::uvec3, 12> gen_cube_indices() noexcept
+    constexpr std::array<glm::vec2, 36> gen_cube_texcoords() noexcept
     {
-        using V = utils::GEN_CUBE_VERTS;
+        constexpr auto LEFT_START = 0.0f / 3.0f;
+        constexpr auto LEFT_END = 1.0f / 3.0f;
+        constexpr auto MIDDLE_START = LEFT_START;
+        constexpr auto MIDDLE_END = 2.0f / 3.0f;
+        constexpr auto RIGHT_START = MIDDLE_END;
+        constexpr auto RIGHT_END = 3.0f / 3.0f;
+
+        constexpr auto TOP_START = 0.0f / 4.0f;
+        constexpr auto TOP_END = 1.0f / 4.0f;
+        constexpr auto TOP_SECOND_START = TOP_END;
+        constexpr auto TOP_SECOND_END = 2.0f / 4.0f;
+        constexpr auto BOTTOM_SECOND_START = TOP_SECOND_END;
+        constexpr auto BOTTOM_SECOND_END = 3.0f / 4.0f;
+        constexpr auto BOTTOM_START = BOTTOM_SECOND_END;
+        constexpr auto BOTTOM_END = 4.0f / 4.0f;
 
         return std::array{
             // BACK FACE
-            glm::uvec3{
-                V::BACK_BOTTOM_LEFT,
-                V::BACK_TOP_LEFT,
-                V::BACK_TOP_RIGHT
-            },
-            glm::uvec3{
-                V::BACK_BOTTOM_LEFT,
-                V::BACK_TOP_RIGHT,
-                V::BACK_BOTTOM_RIGHT
-            },
+            glm::vec2{MIDDLE_START, BOTTOM_END},
+            glm::vec2{MIDDLE_START, BOTTOM_START},
+            glm::vec2{MIDDLE_END, BOTTOM_START},
+            
+            glm::vec2{MIDDLE_START, BOTTOM_END},
+            glm::vec2{MIDDLE_END, BOTTOM_START},
+            glm::vec2{MIDDLE_END, BOTTOM_END},
+            
             // BOTTOM FACE
-            glm::uvec3{
-                V::BACK_BOTTOM_LEFT,
-                V::BACK_BOTTOM_RIGHT,
-                V::FRONT_BOTTOM_LEFT,
-            },
-            glm::uvec3{
-                V::FRONT_BOTTOM_LEFT,
-                V::BACK_BOTTOM_RIGHT,
-                V::FRONT_BOTTOM_RIGHT,
-            },
-            // LEFT FACE
-            glm::uvec3{
-                V::BACK_BOTTOM_LEFT,
-                V::BACK_TOP_LEFT,
-                V::FRONT_TOP_LEFT,
-            },
-            glm::uvec3{
-                V::BACK_BOTTOM_LEFT,
-                V::FRONT_TOP_LEFT,
-                V::FRONT_BOTTOM_LEFT,
-            },
+            glm::vec2{MIDDLE_START, BOTTOM_SECOND_END},
+            glm::vec2{MIDDLE_START, BOTTOM_SECOND_START},
+            glm::vec2{MIDDLE_END, BOTTOM_SECOND_START},
+            
+            glm::vec2{MIDDLE_START, BOTTOM_SECOND_END},
+            glm::vec2{MIDDLE_END, BOTTOM_SECOND_START},
+            glm::vec2{MIDDLE_END, BOTTOM_SECOND_END},
 
-            // Refect on primary axis
+            // LEFT FACE
+            glm::vec2{LEFT_START, TOP_SECOND_END},
+            glm::vec2{LEFT_START, TOP_SECOND_START},
+            glm::vec2{LEFT_END, TOP_SECOND_START},
+            
+            glm::vec2{LEFT_START, TOP_SECOND_END},
+            glm::vec2{LEFT_END, TOP_SECOND_START},
+            glm::vec2{LEFT_END, TOP_SECOND_END},
 
             // FRONT FACE
-            glm::uvec3{
-                V::FRONT_BOTTOM_LEFT,
-                V::FRONT_TOP_LEFT,
-                V::FRONT_TOP_RIGHT
-            },
-            glm::uvec3{
-                V::FRONT_BOTTOM_LEFT,
-                V::FRONT_TOP_RIGHT,
-                V::FRONT_BOTTOM_RIGHT
-            },
+            glm::vec2{MIDDLE_START, TOP_SECOND_END},
+            glm::vec2{MIDDLE_START, TOP_SECOND_START},
+            glm::vec2{MIDDLE_END, TOP_SECOND_START},
+            
+            glm::vec2{MIDDLE_START, TOP_SECOND_END},
+            glm::vec2{MIDDLE_END, TOP_SECOND_START},
+            glm::vec2{MIDDLE_END, TOP_SECOND_END},
+
             // TOP FACE
-            glm::uvec3{
-                V::BACK_TOP_LEFT,
-                V::BACK_TOP_RIGHT,
-                V::FRONT_TOP_LEFT,
-            },
-            glm::uvec3{
-                V::FRONT_TOP_LEFT,
-                V::BACK_TOP_RIGHT,
-                V::FRONT_TOP_RIGHT,
-            },
+            glm::vec2{MIDDLE_START, TOP_END},
+            glm::vec2{MIDDLE_START, TOP_START},
+            glm::vec2{MIDDLE_END, TOP_START},
+            
+            glm::vec2{MIDDLE_START, TOP_END},
+            glm::vec2{MIDDLE_END, TOP_START},
+            glm::vec2{MIDDLE_END, TOP_END},
+
             // RIGHT FACE
-            glm::uvec3{
-                V::BACK_BOTTOM_RIGHT,
-                V::BACK_TOP_RIGHT,
-                V::FRONT_TOP_RIGHT,
-            },
-            glm::uvec3{
-                V::BACK_BOTTOM_RIGHT,
-                V::FRONT_TOP_RIGHT,
-                V::FRONT_BOTTOM_RIGHT,
-            }
+            glm::vec2{RIGHT_START, TOP_SECOND_END},
+            glm::vec2{RIGHT_START, TOP_SECOND_START},
+            glm::vec2{RIGHT_END, TOP_SECOND_START},
+            
+            glm::vec2{RIGHT_START, TOP_SECOND_END},
+            glm::vec2{RIGHT_END, TOP_SECOND_START},
+            glm::vec2{RIGHT_END, TOP_SECOND_END},
         };
     }
 
-    constexpr auto gen_cube_texcoords_single_face(const glm::vec2& start, const glm::vec2& end) noexcept
+    constexpr std::array<glm::vec2, 36> gen_cube_texcoords_single_face(const glm::vec2& start, const glm::vec2& end) noexcept
     {
         return std::array{
             // BACK FACE

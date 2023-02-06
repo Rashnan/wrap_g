@@ -2,7 +2,6 @@
 #define WRAP_G_TESTS_TEXTURED_RECT
 
 #include <iostream>
-#include <future>
 
 #include "../../src/utils.hpp"
 #include "../../src/wrap_g.hpp"
@@ -277,60 +276,60 @@ void create_textured_rect() noexcept
     }
 
 #if WRAP_G_DEBUG
-        std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
+    std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
 #endif
 
 #if WRAP_G_DEBUG
-        utils::metrics tracker;
-        tracker.start_tracking();
+    utils::metrics tracker;
+    tracker.start_tracking();
 #endif
-        while (!win.get_should_close())
-        {
-            // get events such as mouse input
-            // checks every time for event
-            glfwPollEvents();
+    while (!win.get_should_close())
+    {
+        // get events such as mouse input
+        // checks every time for event
+        glfwPollEvents();
 
-            // press S to make the second image more visible
-            // press S with shift to make first image more visible
-            if (glfwGetKey(win.win(), GLFW_KEY_S) == GLFW_PRESS) {
-                tex_mix += (glfwGetKey(win.win(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens;
-                prog.set_uniform<float>(tex_mix_loc, tex_mix);
-            }
-
-#if WRAP_G_DEBUG
-            watch.start();
-#endif
-
-            // set the color that will be used when glClear is called on the color buffer bit
-            glClearColor(blue.r, blue.g, blue.b, blue.a);
-            
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            // use this instead of above to enable 3d depth testing
-            // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            // glEnable outside loop
-            // glEnable(GL_DEPTH_TEST);
-
-            // bind vao and shader program before issuing draw call
-            vao.bind();
-            prog.use();
-            
-            // since we are also using an element array buffer we must use this instead
-            // count of indices is already set when we created the element array buffer
-            // nullptr (fourth) is used as the pointer to the element array buffer
-            // in case we have not already provided it
-            glDrawElements(GL_TRIANGLES, indices_size * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
-
-            // swap the buffers to show the newly drawn frame
-            win.swap_buffers();
-
-#if WRAP_G_DEBUG
-            tracker.track_frame(watch.stop());
-#endif
+        // press S to make the second image more visible
+        // press S with control to make first image more visible
+        if (win.get_key(GLFW_KEY_S) == GLFW_PRESS) {
+            tex_mix += (win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * tex_mix_sens;
+            prog.set_uniform<float>(tex_mix_loc, tex_mix);
         }
+
 #if WRAP_G_DEBUG
-        tracker.finish_tracking();
-        tracker.save(stats_loc);
+        watch.start();
+#endif
+
+        // set the color that will be used when glClear is called on the color buffer bit
+        glClearColor(blue.r, blue.g, blue.b, blue.a);
+        
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // use this instead to reset the color and reset the depth buffer bit
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // glEnable outside loop
+        // glEnable(GL_DEPTH_TEST);
+
+        // bind vao and shader program before issuing draw call
+        vao.bind();
+        prog.use();
+        
+        // since we are also using an element array buffer we must use this instead
+        // count of indices is already set when we created the element array buffer
+        // nullptr (fourth) is used as the pointer to the element array buffer
+        // in case we have not already provided it
+        glDrawElements(GL_TRIANGLES, indices_size * sizeof(glm::uvec3) / sizeof(unsigned int), GL_UNSIGNED_INT, nullptr);
+
+        // swap the buffers to show the newly drawn frame
+        win.swap_buffers();
+
+#if WRAP_G_DEBUG
+        tracker.track_frame(watch.stop());
+#endif
+    }
+#if WRAP_G_DEBUG
+    tracker.finish_tracking();
+    tracker.save(stats_loc);
 #endif
 }
 

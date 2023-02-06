@@ -632,7 +632,9 @@ namespace wrap_g
          * @param name The name of the uniform.
          * @return int The location of the uniform.
          */
-        int uniform_location(const char *name) const noexcept;
+        template<typename String>
+        requires utils::Stringable<String>
+        int uniform_location(String name) const noexcept;
 
         // TODO: check if array version is better
         /**
@@ -641,8 +643,7 @@ namespace wrap_g
          */
         template <typename... Ts>
         requires((utils::Stringable<Ts> && ...))
-        std::vector<int> uniform_locations(Ts &&...names)
-        const noexcept;
+        std::vector<int> uniform_locations(Ts &&...names) const noexcept;
 
         // /**
         // //  * @brief Get the uniform location of multiple unifomrs in a shader in this program.
@@ -662,7 +663,8 @@ namespace wrap_g
          * @param vals The values.
          */
         template <typename... Ts>
-        requires(std::is_integral_v<Ts> &&...) || (std::is_floating_point_v<Ts> && ...) void set_uniform(int loc, const Ts &...vals) noexcept;
+        requires(std::is_integral_v<Ts> &&...) || (std::is_floating_point_v<Ts> && ...)
+        void set_uniform(int loc, const Ts &...vals) noexcept;
 
         /**
          * @brief Set the value of a vector uniform. This function can be used to set the vector uniform of many
@@ -674,7 +676,8 @@ namespace wrap_g
          * @param val A pointer to the vectors which must be consecutively stored.
          * @param count The count of vectors in the uniform.
          */
-        template <size_t vec_size, typename T>
+        template <size_t vec_size, typename T = float>
+        requires std::is_floating_point_v<T>
         void set_uniform_vec(int loc, T *val, size_t count = 1) noexcept;
 
         /**
@@ -691,6 +694,7 @@ namespace wrap_g
          * none are transposed. Default set to false.
          */
         template <size_t rows, size_t cols = rows, typename T = float>
+        requires std::is_floating_point_v<T>
         void set_uniform_mat(int loc, T *val, size_t count = 1, bool transpose = false) noexcept;
 
         friend class window;
