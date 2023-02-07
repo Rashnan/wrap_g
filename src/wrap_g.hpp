@@ -580,7 +580,6 @@ namespace wrap_g
 
     public:
         [[nodiscard]] inline constexpr GLuint id() const noexcept { return m_id; }
-        // [[nodiscard]] inline constexpr const auto &shaders() const noexcept { return m_shaders; }
 
         /**
          * @brief Load and store shader source code.
@@ -624,6 +623,8 @@ namespace wrap_g
          *
          */
         void use() const noexcept;
+
+        void flush_shaders() noexcept;
 
         /**
          * @brief Get the uniform location of a uniform in a shader in this program. For opengl 3

@@ -74,7 +74,7 @@ void create_materials() noexcept
 
     auto load_vert_src = utils::read_file_async(vert_path);
     auto load_frag_src = utils::read_file_async(frag_path);
-    auto load_light_frag = utils::read_file_async(light_frag_path);
+    auto load_light_frag_src = utils::read_file_async(light_frag_path);
 #endif
 
     ////
@@ -126,27 +126,35 @@ void create_materials() noexcept
     wrap_g::cube cube_gl(win);
     wrap_g::cube light_gl(win);
 
+    std::string vert_src, frag_src, light_frag_src;
+
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
     // reads the file right now.
-    std::string vert_src = utils::read_file_sync(vert_path);
+    vert_src = utils::read_file_sync(vert_path);
+    frag_src = utils::read_file_sync(frag_path);
+    light_frag_src = utils::read_file_sync(light_frag_path);
+    
     bool success = cube_gl._base_gl._prog.quick({
         {GL_VERTEX_SHADER, {vert_src}},
-        {GL_FRAGMENT_SHADER, {utils::read_file_sync(frag_path)}}
+        {GL_FRAGMENT_SHADER, {frag_src}}
     });
     success = success && light_gl._base_gl._prog.quick({
         {GL_VERTEX_SHADER, {vert_src}},
-        {GL_FRAGMENT_SHADER, {utils::read_file_sync(light_frag_path)}}
+        {GL_FRAGMENT_SHADER, {light_frag_src}}
     });
 #else
     // if shader source still has not loaded, force main thread to wait.
-    std::string vert_src = load_vert_src.get();
-    bool success = cube_gl._base_gl._prog.quick<std::string>({
+    vert_src = load_vert_src.get();
+    frag_src = load_frag_src.get();
+    light_frag_src = load_light_frag_src.get();
+
+    bool success = cube_gl._base_gl._prog.quick({
         {GL_VERTEX_SHADER, {vert_src}},
-        {GL_FRAGMENT_SHADER, {load_frag_src.get()}}
+        {GL_FRAGMENT_SHADER, {frag_src}}
     });
     success = success && light_gl._base_gl._prog.quick({
         {GL_VERTEX_SHADER, {vert_src}},
-        {GL_FRAGMENT_SHADER, {load_light_frag.get()}}
+        {GL_FRAGMENT_SHADER, {light_frag_src}}
     });
 #endif
 
@@ -154,7 +162,7 @@ void create_materials() noexcept
         return;
 
     enum class CUBE_OBJ_UNIFORMS { PROJ, VIEW, MODEL, COL, LIGHT_COL };
-    const auto test_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col", "light_col");
+    auto test_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col", "light_col");
 
     cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
     cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
@@ -163,12 +171,17 @@ void create_materials() noexcept
     cube_gl._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
 
     enum class LIGHT_OBJ_UNIFORMS { PROJ, VIEW, MODEL, COL };
-    const auto light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
+    auto light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
 
     light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
     light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
     light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::MODEL], glm::value_ptr(light_obj._model));
     light_gl._base_gl._prog.set_uniform_vec<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::COL], glm::value_ptr(white));
+
+    bool reloading_shaders = false;
+    bool loaded_vert_src = false;
+    bool loaded_frag_src = false;
+    bool loaded_light_frag_src = false;
 
     glEnable(GL_DEPTH_TEST);
 
@@ -190,6 +203,87 @@ void create_materials() noexcept
         // get events such as mouse input
         // checks every time for event
         glfwPollEvents();
+
+        if (reloading_shaders)
+        {
+#if !WRAP_G_BACKGROUND_RESOURCE_LOAD
+            // reads the file right now.
+            vert_src = utils::read_file_sync(vert_path);
+            frag_src = utils::read_file_sync(frag_path);
+            light_frag_src = utils::read_file_sync(light_frag_path);
+            
+            cube_gl._base_gl._prog.flush_shaders();
+            success = cube_gl._base_gl._prog.quick({
+                {GL_VERTEX_SHADER, {vert_src}},
+                {GL_FRAGMENT_SHADER, {frag_src}}
+            });
+
+            light_gl._base_gl._prog.flush_shaders();
+            success = success && light_gl._base_gl._prog.quick({
+                {GL_VERTEX_SHADER, {vert_src}},
+                {GL_FRAGMENT_SHADER, {light_frag_src}}
+            });
+#else
+            // if shader source still has not loaded, force main thread to wait.
+
+            load_vert_src = std::async([&loaded_vert_src, &vert_path, &vert_src](){
+                loaded_vert_src = false;
+                vert_src = utils::read_file_sync(vert_path);
+                loaded_vert_src = true;
+                return vert_src;
+            });
+            
+            load_frag_src = std::async([&loaded_frag_src, &frag_path, &frag_src](){
+                loaded_frag_src = false;
+                frag_src = utils::read_file_sync(frag_path);
+                loaded_frag_src = true;
+                return frag_src;
+            });
+            
+            load_light_frag_src = std::async([&loaded_light_frag_src, &light_frag_path, &light_frag_src](){
+                loaded_light_frag_src = false;
+                light_frag_src = utils::read_file_sync(light_frag_path);
+                loaded_light_frag_src = true;
+                return light_frag_src;
+            });
+
+            if (loaded_vert_src && loaded_frag_src && loaded_light_frag_src)
+            {
+                cube_gl._base_gl._prog.flush_shaders();
+                success = cube_gl._base_gl._prog.quick({
+                    {GL_VERTEX_SHADER, {vert_src}},
+                    {GL_FRAGMENT_SHADER, {frag_src}}
+                });
+
+                light_gl._base_gl._prog.flush_shaders();
+                success = success && light_gl._base_gl._prog.quick({
+                    {GL_VERTEX_SHADER, {vert_src}},
+                    {GL_FRAGMENT_SHADER, {light_frag_src}}
+                });
+            }
+#endif
+
+            if (!success)
+                return;
+
+            // Increases in uniforms cannot be hot reloaded as the new variables need to be initialized in the cpp file
+            // Depending on changes GPU mmay optimize out some uniforms but this will NOT cause any errors in setting them
+
+            test_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col", "light_col");
+            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
+            cube_gl._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::COL], glm::value_ptr(coral));
+            cube_gl._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
+
+            light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::MODEL], glm::value_ptr(light_obj._model));
+            light_gl._base_gl._prog.set_uniform_vec<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::COL], glm::value_ptr(white));
+
+            reloading_shaders = false;
+        }
 
         // look direction
         // rotate camera along with mouse rotation
@@ -283,6 +377,7 @@ void create_materials() noexcept
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
         }
 
+        if (win.get_key(GLFW_KEY_T) == GLFW_PRESS && !reloading_shaders){ reloading_shaders = true; }
 
         cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
         light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));

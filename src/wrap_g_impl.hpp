@@ -759,7 +759,7 @@ namespace wrap_g
             glDeleteShader(shader_id);
 
 #if WRAP_G_DEBUG
-            __graphics.out() << "[wrap_g] Debug: Deleting program #" << m_id << " shader #" << shader_id << ".\n ";
+            __graphics.out() << "[wrap_g] Debug: Deleted program #" << m_id << " shader #" << shader_id << ".\n ";
 #endif
             return false;
         }
@@ -772,6 +772,10 @@ namespace wrap_g
 
         // attach the shader to the current program
         glAttachShader(m_id, shader_id);
+
+#if WRAP_G_DEBUG
+        __graphics.out() << "[wrap_g] Debug: Attached program #" << m_id << " shader #" << shader_id << ".\n";
+#endif
 
         return true;
     }
@@ -799,6 +803,14 @@ namespace wrap_g
 #if WRAP_G_DEBUG
         __graphics.out() << "[wrap_g] Debug: Linked program #" << m_id << ".\n";
 #endif
+
+        for (auto& id : m_shaders)
+        {
+            glDetachShader(m_id, id);
+#if WRAP_G_DEBUG
+        __graphics.out() << "[wrap_g] Debug: Detached program #" << m_id << " shader #" << id << ".\n";
+#endif
+        }
     
         return true;
     }
@@ -807,6 +819,18 @@ namespace wrap_g
     {
         // use the current program in the current context
         glUseProgram(m_id);
+    }
+
+    void program::flush_shaders() noexcept
+    {
+        for (auto& id : m_shaders)
+        {
+#if WRAP_G_DEBUG
+            __graphics.out() << "[wrap_g] Debug: Deleted program #" << m_id << " shader #" << id << ".\n";
+#endif
+            glDeleteShader(id);
+        }
+        m_shaders.clear();
     }
 
     template<typename String>
