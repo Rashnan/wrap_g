@@ -35,10 +35,11 @@ struct observer
     glm::mat4 _view {1.};
 };
 
-class object
+struct object
 {
 public:
     glm::mat4 _model {1.};
+    glm::mat3 _normal_mat {1.};
 };
 
 class gl_object
@@ -92,14 +93,19 @@ struct cube
     cube(window& context) noexcept : _base_gl(context)
     {
         constexpr auto verts = utils::gen_cube_verts(glm::vec3{-0.5f}, glm::vec3{0.5f});
+        constexpr auto normals = utils::gen_cube_normals(glm::vec3{-0.5f}, glm::vec3{0.5f});
         constexpr auto tex_coords = utils::gen_cube_texcoords();
 
+        std::cout << "\n";
+
         _base_gl._vao.define_attrib(0, 0, 3, GL_FLOAT);
-        _base_gl._vao.define_attrib(1, 1, 2, GL_FLOAT);
+        _base_gl._vao.define_attrib(1, 1, 3, GL_FLOAT);
+        _base_gl._vao.define_attrib(2, 2, 2, GL_FLOAT);
 
         _base_gl._vao.create_array_buffer(0, verts.size() * sizeof(glm::vec3), verts.data(), GL_MAP_READ_BIT);
         m_verts_size = verts.size();
-        _base_gl._vao.create_array_buffer(1, tex_coords.size() * sizeof(glm::vec2), tex_coords.data(), GL_MAP_READ_BIT);
+        _base_gl._vao.create_array_buffer(1, normals.size() * sizeof(glm::vec3), normals.data(), GL_MAP_READ_BIT);
+        _base_gl._vao.create_array_buffer(2, tex_coords.size() * sizeof(glm::vec2), tex_coords.data(), GL_MAP_READ_BIT);
     }
 
     void render() const noexcept

@@ -84,9 +84,9 @@ void create_materials() noexcept
 
     glm::vec3 world_up {0.0f, 1.0f, 0.0f};
 
-    glm::vec3 cam_pos {0.0f, 1.0f, 1.0f};
-    glm::vec3 light_pos {2.0f, 2.0f, -2.0f};
-    glm::vec3 cube_pos {2.0f, 0.0f, -2.0f};
+    glm::vec3 cam_start_pos {-1.0f, 0.0f, 1.0f};
+    glm::vec3 light_pos {2.0f, 2.0f, -3.0f};
+    glm::vec3 cube_pos {0.0f, 0.0f, -2.0f};
 
     wrap_g::observer camera;
 
@@ -94,10 +94,13 @@ void create_materials() noexcept
     wrap_g::object light_obj;
 
     cube_obj._model = glm::translate(cube_obj._model, cube_pos);
-    light_obj._model = glm::translate(cube_obj._model, light_pos);
+    light_obj._model = glm::translate(light_obj._model, light_pos);
+    light_obj._model = glm::scale(light_obj._model, glm::vec3{0.25f});
+
+    cube_obj._normal_mat = glm::mat3(glm::transpose(glm::inverse(cube_obj._model)));
 
     wrap_g::perspective_camera pers_cam(30.0f, win.width() / (float)win.height(), 0.1f, 100.0f);
-    wrap_g::dynamic_camera dyn_cam(cam_pos, cube_pos, world_up);
+    wrap_g::dynamic_camera dyn_cam(cam_start_pos, cube_pos, world_up);
 
     bool first_mouse = false;
 
@@ -109,6 +112,8 @@ void create_materials() noexcept
     // movement sens is for camera movement within the world
     // zoom sens is for camera zoom or fov control
     float look_sens = 300.0, move_sens = 10.0, zoom_sens = 100.0;
+
+    float cube_rotation_speed = 10.0f;
     
     // hide the cursor
     glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -161,14 +166,17 @@ void create_materials() noexcept
     if (!success)
         return;
 
-    enum class CUBE_OBJ_UNIFORMS { PROJ, VIEW, MODEL, COL, LIGHT_COL };
-    auto test_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col", "light_col");
+    enum class CUBE_OBJ_UNIFORMS { PROJ, VIEW, MODEL, NORMAL_MAT, COL, LIGHT_COL, LIGHT_POS, CAM_POS };
+    auto cube_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "normal_mat", "col", "light_col", "light_pos", "cam_pos");
 
-    cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
-    cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
-    cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
-    cube_gl._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::COL], glm::value_ptr(coral));
-    cube_gl._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
+    cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+    cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+    cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
+    cube_gl._base_gl._prog.set_uniform_mat<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::NORMAL_MAT], glm::value_ptr(cube_obj._normal_mat));
+    cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::COL], glm::value_ptr(coral));
+    cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POS], glm::value_ptr(light_pos));
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
 
     enum class LIGHT_OBJ_UNIFORMS { PROJ, VIEW, MODEL, COL };
     auto light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
@@ -263,18 +271,18 @@ void create_materials() noexcept
             }
 #endif
 
-            if (!success)
-                return;
-
             // Increases in uniforms cannot be hot reloaded as the new variables need to be initialized in the cpp file
             // Depending on changes GPU mmay optimize out some uniforms but this will NOT cause any errors in setting them
 
-            test_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col", "light_col");
-            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
-            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
-            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
-            cube_gl._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::COL], glm::value_ptr(coral));
-            cube_gl._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
+            cube_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "normal_mat", "col", "light_col", "light_pos", "cam_pos");
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
+            cube_gl._base_gl._prog.set_uniform_mat<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::NORMAL_MAT], glm::value_ptr(cube_obj._normal_mat));
+            cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::COL], glm::value_ptr(coral));
+            cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POS], glm::value_ptr(light_pos));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
 
             light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
@@ -296,19 +304,20 @@ void create_materials() noexcept
             {
                 // basically ignore first mouse
                 first_mouse = false;
+                // update last cursor position
+                last_cursor = glm::vec2{cursor.first, cursor.second};
             }
             else
             {
                 // calculate how far the mouse is from last position
                 glm::vec2 cursor_offset = glm::vec2{cursor.first, cursor.second} - last_cursor;
+                // update last cursor position
+                last_cursor = glm::vec2{cursor.first, cursor.second};
                 // y axis is flipped as y is measured from top to bottom
                 // top of screen is y=0 when we get the cursor position
                 cursor_offset *= glm::vec2{1, -1} * look_sens * dt;
                 dyn_cam.rotate(cursor_offset, world_up);
             }
-
-            // update last cursor position
-            last_cursor = glm::vec2{cursor.first, cursor.second};
         }
 
         // movement
@@ -360,7 +369,7 @@ void create_materials() noexcept
         {
             pers_cam.adjust_fov(-(win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * zoom_sens * dt);
 
-            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
         }
 
@@ -373,15 +382,22 @@ void create_materials() noexcept
             dyn_cam.reset(world_up);
             pers_cam.reset_fov();
 
-            cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
         }
 
         if (win.get_key(GLFW_KEY_T) == GLFW_PRESS && !reloading_shaders){ reloading_shaders = true; }
 
-        cube_gl._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+        cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
+        cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
         light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
 
+        cube_obj._model = glm::rotate(cube_obj._model, glm::radians(45.0f) * cube_rotation_speed * dt, glm::vec3{1, 2, 3});
+        cube_obj._normal_mat = glm::mat3(glm::transpose(glm::inverse(cube_obj._model)));
+
+        cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
+        cube_gl._base_gl._prog.set_uniform_mat<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::NORMAL_MAT], glm::value_ptr(cube_obj._normal_mat));
+        
         watch.start();
 
         ////

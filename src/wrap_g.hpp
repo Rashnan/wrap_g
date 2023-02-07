@@ -537,7 +537,6 @@ namespace wrap_g
         wrap_g &__graphics;
 
         GLuint m_id;
-        // std::unordered_map<GLenum, std::vector<GLuint>> m_shaders;
         std::vector<GLuint> m_shaders;
 
     public:

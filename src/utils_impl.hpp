@@ -1305,6 +1305,61 @@ namespace utils
         };
     }
 
+    constexpr std::array<glm::vec3, 36> gen_cube_normals(const glm::vec3& start, const glm::vec3& end) noexcept
+    {
+        glm::vec3 dir = end - start;
+        glm::vec3 right, up, forward;
+        right = glm::vec3{dir.x, 0.0f, 0.0f};
+        up = glm::vec3{0.0f, dir.y, 0.0f};
+        forward = glm::vec3{0.0f, 0.0f, dir.z};
+
+        return std::array{
+            // BACK FACE
+            -forward, -forward, -forward, -forward, -forward, -forward,
+
+            // BOTTOM FACE
+            -up, -up, -up, -up, -up, -up,
+
+            // LEFT FACE
+            -right, -right, -right, -right, -right, -right,
+
+            // reflect on primary axis
+
+            // FRONT FACE
+            forward, forward, forward, forward, forward, forward,
+
+            // TOP FACE
+            up, up, up, up, up, up,
+
+            // RIGHT FACE
+            right, right, right, right, right, right,
+        };
+    }
+    
+    constexpr std::array<glm::vec3, 6> __gen_cube_normals(const glm::vec3& start, const glm::vec3& end) noexcept
+    {
+        glm::vec3 dir = end - start;
+        glm::vec3 right, up, forward;
+        right = glm::vec3{dir.x, 0.0f, 0.0f};
+        up = glm::vec3{0.0f, dir.y, 0.0f};
+        forward = glm::vec3{0.0f, 0.0f, dir.z};
+
+        return std::array{
+            // BACK FACE
+            -forward,
+            // BOTTOM FACE
+            -up,
+            // LEFT FACE
+            -right,
+            // reflect on primary axis
+            // FRONT FACE
+            forward,
+            // TOP FACE
+            up,
+            // RIGHT FACE
+            right,
+        };
+    }
 } // namespace utils
 
 #endif

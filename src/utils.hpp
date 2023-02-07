@@ -416,6 +416,8 @@ namespace utils
      */
     constexpr std::array<glm::uvec3, 2> gen_rect_indices() noexcept;
 
+    // TODO: maybe add gen_rect_normals() sideways normals for 2d and outward normals for 3d
+
     /**
      * @brief Creates the full vertices for a cube using the two points given.
      * * NOTE: These vertices are expected to be used with glDrawArrays or without an element array buffer.
@@ -448,6 +450,20 @@ namespace utils
      * @return constexpr std::array<glm::vec2, 36> 
      */
     constexpr std::array<glm::vec2, 36> gen_cube_texcoords_single_face(const glm::vec2& start = glm::vec2{0.0f}, const glm::vec2& end = glm::vec2{1.0f}) noexcept;
+
+    /**
+     * @brief Creates the normals for each vertex on the vertices of a cube created by gen_cube_verts().
+     * Can be used to calculate diffuse lighting.
+     * ! For constexpr the normals generated are not normalized (distance = 1)
+     * ! use start-end distance = 1 and scale to keep normals normalized
+     * ! or normalize them in a shader etc.
+     * TODO: Allow a parameter to modify whether normals should be flipped?
+     * 
+     * @param start the bottom left back point
+     * @param end the front right top point
+     * @return constexpr std::array<glm::vec3, 36> 
+     */
+    constexpr std::array<glm::vec3, 36> gen_cube_normals(const glm::vec3& start, const glm::vec3& end) noexcept;
 
 } // namespace utils
 
