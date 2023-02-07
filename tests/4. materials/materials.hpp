@@ -64,6 +64,8 @@ void create_materials() noexcept
     constexpr const char *frag_path = "./tests/4. materials/frag.glsl";
     constexpr const char *light_frag_path = "./tests/4. materials/light_frag.glsl";
 
+    constexpr const char *materials_list_path = "./tests/4. materials/materials list.csv";
+
     constexpr const char *stats_loc = "./tests/4. materials/stats.csv";
 
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
@@ -75,6 +77,7 @@ void create_materials() noexcept
     auto load_vert_src = utils::read_file_async(vert_path);
     auto load_frag_src = utils::read_file_async(frag_path);
     auto load_light_frag_src = utils::read_file_async(light_frag_path);
+    auto load_mat_list = utils::read_file_async(materials_list_path);
 #endif
 
     ////
@@ -112,8 +115,46 @@ void create_materials() noexcept
     // movement sens is for camera movement within the world
     // zoom sens is for camera zoom or fov control
     float look_sens = 300.0, move_sens = 10.0, zoom_sens = 100.0;
-
     float cube_rotation_speed = 10.0f;
+
+    struct Material {
+        glm::vec3 ambient;
+        glm::vec3 diffuse;
+        glm::vec3 specular;
+        float shininess;
+    };
+
+    std::string mat_list_str;
+
+#if !WRAP_G_BACKGROUND_RESOURCE_LOAD
+    mat_list_str = utils::read_file_sync(materials_list_path);    
+#else
+    mat_list_str = load_mat_list.get();
+#endif
+
+    // TODO: create csv reader and allow switching between materials using keypress
+    std::vector<Material> materials_list;
+
+    Material cube_mat {
+        .ambient = glm::vec3{0.1745f, 0.01175f, 0.01175f},
+        .diffuse = glm::vec3{0.61424f, 0.04136f, 0.04136f},
+        .specular = glm::vec3{0.727811f, 0.626959f, 0.626959f},
+        .shininess = 128.0f * 0.6f,
+    };
+
+    // ! note different from frag shader
+    // ! no pos
+    struct Light {
+        glm::vec3 ambient;
+        glm::vec3 diffuse;
+        glm::vec3 specular;
+    };
+
+    Light light_mat {
+        .ambient = glm::vec3{1.0f},
+        .diffuse = glm::vec3{1.0f},
+        .specular = glm::vec3{1.0f}
+    };
     
     // hide the cursor
     glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -166,16 +207,35 @@ void create_materials() noexcept
     if (!success)
         return;
 
-    enum class CUBE_OBJ_UNIFORMS { PROJ, VIEW, MODEL, NORMAL_MAT, COL, LIGHT_COL, LIGHT_POS, CAM_POS };
-    auto cube_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "normal_mat", "col", "light_col", "light_pos", "cam_pos");
+    enum class CUBE_OBJ_UNIFORMS {
+        PROJ, VIEW, MODEL, NORMAL_MAT,
+        MAT_AMBIENT, MAT_DIFFUSE, MAT_SPECULAR, MAT_SHININESS,
+        LIGHT_POSITION, LIGHT_AMBIENT, LIGHT_DIFFUSE, LIGHT_SPECULAR,
+        CAM_POS
+    };
+
+    auto cube_uniforms = cube_gl._base_gl._prog.uniform_locations(
+        "proj", "view", "model", "normal_mat",
+        "material.ambient", "material.diffuse", "material.specular", "material.shininess",
+        "light.position", "light.ambient", "light.diffuse", "light.specular",
+        "cam_pos"
+    );
 
     cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
     cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
     cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
     cube_gl._base_gl._prog.set_uniform_mat<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::NORMAL_MAT], glm::value_ptr(cube_obj._normal_mat));
-    cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::COL], glm::value_ptr(coral));
-    cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
-    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POS], glm::value_ptr(light_pos));
+
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_AMBIENT], glm::value_ptr(cube_mat.ambient));
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], glm::value_ptr(cube_mat.diffuse));
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], glm::value_ptr(cube_mat.specular));
+    cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
+
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POSITION], glm::value_ptr(light_pos));
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_AMBIENT], glm::value_ptr(light_mat.ambient));
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_DIFFUSE], glm::value_ptr(light_mat.diffuse));
+    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_SPECULAR], glm::value_ptr(light_mat.specular));
+
     cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
 
     enum class LIGHT_OBJ_UNIFORMS { PROJ, VIEW, MODEL, COL };
@@ -274,17 +334,32 @@ void create_materials() noexcept
             // Increases in uniforms cannot be hot reloaded as the new variables need to be initialized in the cpp file
             // Depending on changes GPU mmay optimize out some uniforms but this will NOT cause any errors in setting them
 
-            cube_uniforms = cube_gl._base_gl._prog.uniform_locations("proj", "view", "model", "normal_mat", "col", "light_col", "light_pos", "cam_pos");
+            cube_uniforms = cube_gl._base_gl._prog.uniform_locations(
+                "proj", "view", "model", "normal_mat",
+                "material.ambient", "material.diffuse", "material.specular", "material.shininess",
+                "light.position", "light.ambient", "light.diffuse", "light.specular",
+                "cam_pos"
+            );
+
             cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
             cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
             cube_gl._base_gl._prog.set_uniform_mat<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::NORMAL_MAT], glm::value_ptr(cube_obj._normal_mat));
-            cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::COL], glm::value_ptr(coral));
-            cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_COL], glm::value_ptr(white));
-            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POS], glm::value_ptr(light_pos));
+
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_AMBIENT], glm::value_ptr(cube_mat.ambient));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], glm::value_ptr(cube_mat.diffuse));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], glm::value_ptr(cube_mat.specular));
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
+
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POSITION], glm::value_ptr(light_pos));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_AMBIENT], glm::value_ptr(light_mat.ambient));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_DIFFUSE], glm::value_ptr(light_mat.diffuse));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_SPECULAR], glm::value_ptr(light_mat.specular));
+
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
 
             light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
+
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::MODEL], glm::value_ptr(light_obj._model));
