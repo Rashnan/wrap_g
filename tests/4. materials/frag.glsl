@@ -4,8 +4,13 @@ in vec2 texCoord;
 out vec4 frag_col;
 
 uniform vec4 col;
+uniform vec4 light_col;
 
 void main()
 {
-    frag_col = vec4(texCoord.xy, 0.0, 1.0);
+    float ambient_strength = 0.1;
+    vec4 ambient = ambient_strength * light_col;
+
+    vec4 res = ambient * col;
+    frag_col = res;
 }

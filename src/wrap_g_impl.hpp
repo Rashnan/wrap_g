@@ -681,18 +681,15 @@ namespace wrap_g
     }
 
     program::~program() noexcept
-    {
-        for (const auto &[shader_type, ids] : m_shaders)
+    {   
+        for (const auto &id : m_shaders)
         {
-            for (const auto &id : ids)
-            {
-                // delete each sub shader
-                glDeleteShader(id);
+            // delete each sub shader
+            glDeleteShader(id);
 
 #if WRAP_G_DEBUG
-                __graphics.out() << "[wrap_g] Debug: Deleted program #" << m_id << " shader #" << id << ".\n";
+            __graphics.out() << "[wrap_g] Debug: Deleted program #" << m_id << " shader #" << id << ".\n";
 #endif
-            }
         }
 
         // delete the shader program
@@ -770,6 +767,8 @@ namespace wrap_g
 #if WRAP_G_DEBUG
         __graphics.out() << "[wrap_g] Debug: Compiled program #" << m_id << " shader #" << shader_id << ".\n";
 #endif
+
+        m_shaders.push_back(shader_id);
 
         // attach the shader to the current program
         glAttachShader(m_id, shader_id);

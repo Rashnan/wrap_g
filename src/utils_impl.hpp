@@ -1171,21 +1171,21 @@ namespace utils
 
     constexpr std::array<glm::vec2, 36> gen_cube_texcoords() noexcept
     {
-        constexpr auto LEFT_START = 0.0f / 3.0f;
-        constexpr auto LEFT_END = 1.0f / 3.0f;
+        constexpr auto LEFT_START = -1.0f;
+        constexpr auto LEFT_END = 0.0f;
         constexpr auto MIDDLE_START = LEFT_START;
-        constexpr auto MIDDLE_END = 2.0f / 3.0f;
+        constexpr auto MIDDLE_END = 1.0f;
         constexpr auto RIGHT_START = MIDDLE_END;
-        constexpr auto RIGHT_END = 3.0f / 3.0f;
+        constexpr auto RIGHT_END = 2.0f;
 
-        constexpr auto TOP_START = 0.0f / 4.0f;
-        constexpr auto TOP_END = 1.0f / 4.0f;
+        constexpr auto TOP_START = -1.0f;
+        constexpr auto TOP_END = 0.0f;
         constexpr auto TOP_SECOND_START = TOP_END;
-        constexpr auto TOP_SECOND_END = 2.0f / 4.0f;
+        constexpr auto TOP_SECOND_END = 1.0f;
         constexpr auto BOTTOM_SECOND_START = TOP_SECOND_END;
-        constexpr auto BOTTOM_SECOND_END = 3.0f / 4.0f;
+        constexpr auto BOTTOM_SECOND_END = 2.0f;
         constexpr auto BOTTOM_START = BOTTOM_SECOND_END;
-        constexpr auto BOTTOM_END = 4.0f / 4.0f;
+        constexpr auto BOTTOM_END = 3.0f;
 
         return std::array{
             // BACK FACE

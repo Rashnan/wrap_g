@@ -57,7 +57,6 @@ public:
 struct rect
 {
     gl_object _base_gl;
-    object _base;
     size_t m_indices_size;
 
     rect(window& context) noexcept : _base_gl(context)
@@ -88,7 +87,6 @@ struct rect
 struct cube
 {
     gl_object _base_gl;
-    object _base;
     size_t m_verts_size;
 
     cube(window& context) noexcept : _base_gl(context)

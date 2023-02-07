@@ -537,7 +537,8 @@ namespace wrap_g
         wrap_g &__graphics;
 
         GLuint m_id;
-        std::unordered_map<GLenum, std::vector<GLuint>> m_shaders;
+        // std::unordered_map<GLenum, std::vector<GLuint>> m_shaders;
+        std::vector<GLuint> m_shaders;
 
     public:
         /**
@@ -579,7 +580,7 @@ namespace wrap_g
 
     public:
         [[nodiscard]] inline constexpr GLuint id() const noexcept { return m_id; }
-        [[nodiscard]] inline constexpr const auto &shaders() const noexcept { return m_shaders; }
+        // [[nodiscard]] inline constexpr const auto &shaders() const noexcept { return m_shaders; }
 
         /**
          * @brief Load and store shader source code.
