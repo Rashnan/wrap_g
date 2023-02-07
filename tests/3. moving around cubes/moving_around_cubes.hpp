@@ -162,7 +162,7 @@ void create_moving_around_cubes() noexcept
     // set a perspective projection with the nearest visible objects being 0.1f infront of the camera
     // and the furthest being 10.0f from the camera
     proj = glm::perspective(glm::radians(fov), (float)win.width()/win.height(), 0.1f, 100.0f);
-    view = glm::lookAt(camera_start_pos, camera_start_looking_at, glm::vec3{0.0f, 1.0f, 0.0f});
+    view = glm::lookAt(camera_start_pos, camera_start_looking_at, world_up);
 
     // hide the cursor
     glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -396,7 +396,7 @@ void create_moving_around_cubes() noexcept
                 camera_up = glm::normalize(glm::cross(camera_right, camera_dir));
 
                 // calculate view matrix
-                view = glm::lookAt(camera_pos, camera_pos + camera_dir, glm::vec3{0.0f, 1.0f, 0.0f});
+                view = glm::lookAt(camera_pos, camera_pos + camera_dir, world_up);
             }
 
             // update last cursor position
@@ -408,9 +408,9 @@ void create_moving_around_cubes() noexcept
         // move left
         if (win.get_key(GLFW_KEY_A) == GLFW_PRESS)
         {
-            auto offest = - camera_right * movement_sens * dt;
-            camera_pos += offest;
-            view = glm::translate(view, - offest);
+            auto offset = - camera_right * movement_sens * dt;
+            camera_pos += offset;
+            view = glm::translate(view, - offset);
         }
 
         // move right

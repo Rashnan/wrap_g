@@ -317,11 +317,6 @@ namespace utils
     requires std::swappable<T>
     void flip_array2d(size_t width, size_t height, T *ptr, bool horizontally = false, bool vertically = false) noexcept;
 
-    glm::vec3 right(const glm::mat4& mat) noexcept;
-    glm::vec3 up(const glm::mat4& mat) noexcept;
-    glm::vec3 front(const glm::mat4& mat) noexcept;
-    glm::vec3 position(const glm::mat4& mat) noexcept;
-
     template <typename T>
     requires std::equality_comparable<T>
     bool one_of(const T &val, const std::initializer_list<T> &list) noexcept;

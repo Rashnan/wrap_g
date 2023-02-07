@@ -7,5 +7,5 @@ uniform vec4 col;
 
 void main()
 {
-    frag_col = col * distance(texCoord, vec2(0.5));
+    frag_col = vec4(texCoord.xy, 0.0, 1.0);
 }

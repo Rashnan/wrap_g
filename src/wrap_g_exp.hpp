@@ -29,16 +29,12 @@ namespace wrap_g
 ////
 // Absolute Basic
 
-template<typename T = float>
-requires (std::is_same_v<T, double> || std::is_same_v<T, float>)
 struct observer
 {
     glm::mat4 _proj {1.};
     glm::mat4 _view {1.};
 };
 
-template<typename T = float>
-requires (std::is_same_v<T, double> || std::is_same_v<T, float>)
 class object
 {
 public:
@@ -58,16 +54,13 @@ public:
 ////
 // Basic Shapes
 
-class rect
+struct rect
 {
-public:
     gl_object _base_gl;
-    object<> _base;
-    std::unordered_map<std::string_view, int> m_uniforms_locs;
+    object _base;
     size_t m_indices_size;
 
-public:
-    rect(window& context) : _base_gl(context)
+    rect(window& context) noexcept : _base_gl(context)
     {
         constexpr auto verts = utils::gen_rect_verts<3>(glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{0.5f, 0.5f, 0.0f});
         constexpr auto tex_coords = utils::gen_rect_verts<2>(glm::vec2{0.0f}, glm::vec2{1.0f});
@@ -83,93 +76,6 @@ public:
         _base_gl._vao.create_element_buffer(m_indices_size * sizeof(glm::uvec3), indices.data(), GL_MAP_READ_BIT);
     }
 
-    template<typename String>
-    requires utils::Stringable<String>
-    bool prog_quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept
-    {
-        return _base_gl._prog.quick(std::forward<const std::unordered_map<GLenum, std::vector<String>> &>(shaders));
-    }
-
-    template<typename ... Uniforms>
-    requires (utils::Stringable<Uniforms> && ...)
-    void save_uniforms(Uniforms&& ... uniforms_names) noexcept
-    {
-        for (const auto& uniform_name : std::initializer_list{uniforms_names...}) {
-            int uniform_loc = _base_gl._prog.uniform_location(uniform_name);
-            if (uniform_loc == -1)
-                continue;
-
-            m_uniforms_locs.insert({{uniform_name, uniform_loc}});
-        }
-    }
-
-    template<typename String>
-    requires utils::Stringable<String>
-    void save_uniforms(std::initializer_list<String> uniforms_names) noexcept
-    {
-        for (const auto& uniform_name : uniforms_names) {
-            int uniform_loc = _base_gl._prog.uniform_location(uniform_name);
-            if (uniform_loc == -1)
-                continue;
-
-            m_uniforms_locs.insert({{uniform_name, uniform_loc}});
-        }
-    }
-
-    template<typename ... Ts>
-    requires(std::is_integral_v<Ts> &&...) || (std::is_floating_point_v<Ts> && ...)
-    void set_uniform(std::string_view name, const Ts&... vals) noexcept
-    {
-        auto it = m_uniforms_locs.find(name);
-        if (it == m_uniforms_locs.end())
-        {
-            int loc = _base_gl._prog.uniform_location(name);
-            if (loc == -1)
-                return;
-            
-            m_uniforms_locs.insert({{name, loc}});
-            it = m_uniforms_locs.find(name);
-        }
-
-        _base_gl._prog.set_uniform(it->second, vals...);
-    }
-
-    template<size_t vec_size, typename T = float>
-    requires std::is_floating_point_v<T>
-    void set_uniform_vec(std::string_view name, T *val, size_t count = 1) noexcept
-    {
-        auto it = m_uniforms_locs.find(name);
-        if (it == m_uniforms_locs.end())
-        {
-            int loc = _base_gl._prog.uniform_location(name);
-            if (loc == -1)
-                return;
-            
-            m_uniforms_locs.insert({{name, loc}});
-            it = m_uniforms_locs.find(name);
-        }
-
-        _base_gl._prog.set_uniform_vec<vec_size, T>(it->second, val, count);
-    }
-
-    template<size_t rows, size_t cols = rows, typename T = float>
-    requires std::is_floating_point_v<T>
-    void set_uniform_mat(std::string_view name, T *val, size_t count = 1, bool transpose = false) noexcept
-    {
-        auto it = m_uniforms_locs.find(name);
-        if (it == m_uniforms_locs.end())
-        {
-            int loc = _base_gl._prog.uniform_location(name);
-            if (loc == -1)
-                return;
-            
-            m_uniforms_locs.insert({{name, loc}});
-            it = m_uniforms_locs.find(name);
-        }
-
-        _base_gl._prog.set_uniform_mat<rows, cols, T>(it->second, val, count, transpose);
-    }
-
     void render() const noexcept
     {
         _base_gl._vao.bind();
@@ -179,16 +85,13 @@ public:
     }
 };
 
-class cube
+struct cube
 {
-public:
     gl_object _base_gl;
-    object<> _base;
-    std::unordered_map<std::string_view, int> m_uniforms_locs;
+    object _base;
     size_t m_verts_size;
 
-public:
-    cube(window& context) : _base_gl(context)
+    cube(window& context) noexcept : _base_gl(context)
     {
         constexpr auto verts = utils::gen_cube_verts(glm::vec3{-0.5f}, glm::vec3{0.5f});
         constexpr auto tex_coords = utils::gen_cube_texcoords();
@@ -201,99 +104,116 @@ public:
         _base_gl._vao.create_array_buffer(1, tex_coords.size() * sizeof(glm::vec2), tex_coords.data(), GL_MAP_READ_BIT);
     }
 
-    template<typename String>
-    requires utils::Stringable<String>
-    bool prog_quick(const std::unordered_map<GLenum, std::vector<String>> &shaders) noexcept
-    {
-        return _base_gl._prog.quick(std::forward<const std::unordered_map<GLenum, std::vector<String>> &>(shaders));
-    }
-
-    template<typename ... Uniforms>
-    requires (utils::Stringable<Uniforms> && ...)
-    void save_uniforms(Uniforms&& ... uniforms_names) noexcept
-    {
-        for (const auto& uniform_name : std::initializer_list{uniforms_names...}) {
-            int uniform_loc = _base_gl._prog.uniform_location(uniform_name);
-            if (uniform_loc == -1)
-                continue;
-
-            m_uniforms_locs.insert({{uniform_name, uniform_loc}});
-        }
-    }
-
-    template<typename String>
-    requires utils::Stringable<String>
-    void save_uniforms(std::initializer_list<String> uniforms_names) noexcept
-    {
-        for (const auto& uniform_name : uniforms_names) {
-            int uniform_loc = _base_gl._prog.uniform_location(uniform_name);
-            if (uniform_loc == -1)
-                continue;
-
-            m_uniforms_locs.insert({{uniform_name, uniform_loc}});
-        }
-    }
-
-    template<typename ... Ts>
-    requires(std::is_integral_v<Ts> &&...) || (std::is_floating_point_v<Ts> && ...)
-    void set_uniform(std::string_view name, const Ts&... vals) noexcept
-    {
-        auto it = m_uniforms_locs.find(name);
-        if (it == m_uniforms_locs.end())
-        {
-            int loc = _base_gl._prog.uniform_location(name);
-            if (loc == -1)
-                return;
-            
-            m_uniforms_locs.insert({{name, loc}});
-            it = m_uniforms_locs.find(name);
-        }
-
-        _base_gl._prog.set_uniform(it->second, vals...);
-    }
-
-    template<size_t vec_size, typename T = float>
-    requires std::is_floating_point_v<T>
-    void set_uniform_vec(std::string_view name, T *val, size_t count = 1) noexcept
-    {
-        auto it = m_uniforms_locs.find(name);
-        if (it == m_uniforms_locs.end())
-        {
-            int loc = _base_gl._prog.uniform_location(name);
-            if (loc == -1)
-                return;
-            
-            m_uniforms_locs.insert({{name, loc}});
-            it = m_uniforms_locs.find(name);
-        }
-
-        _base_gl._prog.set_uniform_vec<vec_size, T>(it->second, val, count);
-    }
-
-    template<size_t rows, size_t cols = rows, typename T = float>
-    requires std::is_floating_point_v<T>
-    void set_uniform_mat(std::string_view name, T *val, size_t count = 1, bool transpose = false) noexcept
-    {
-        auto it = m_uniforms_locs.find(name);
-        if (it == m_uniforms_locs.end())
-        {
-            int loc = _base_gl._prog.uniform_location(name);
-            if (loc == -1)
-                return;
-            
-            m_uniforms_locs.insert({{name, loc}});
-            it = m_uniforms_locs.find(name);
-        }
-
-        _base_gl._prog.set_uniform_mat<rows, cols, T>(it->second, val, count, transpose);
-    }
-
     void render() const noexcept
     {
         _base_gl._vao.bind();
         _base_gl._prog.use();
 
         glDrawArrays(GL_TRIANGLES, 0, m_verts_size);
+    }
+};
+
+////
+// Cameras
+
+struct perspective_camera
+{
+    glm::mat4 m_proj;
+
+    float m_start_fov;
+
+    float m_fov;
+    float m_aspect_ratio;
+    float m_z_near;
+    float m_z_far;
+
+    perspective_camera(float start_fov, float aspect_ratio, float z_near, float z_far) noexcept
+        : m_start_fov(start_fov), m_fov(start_fov), m_aspect_ratio(aspect_ratio), m_z_near(z_near), m_z_far(z_far)
+    {
+        m_proj = glm::perspective(glm::radians(m_fov), m_aspect_ratio, m_z_near, m_z_far);
+    }
+
+    void adjust_fov(float offset) noexcept
+    {
+        m_fov += offset;
+        m_proj = glm::perspective(glm::radians(m_fov), m_aspect_ratio, m_z_near, m_z_far);
+    }
+    void reset_fov(float fov = 0.0f) noexcept
+    {
+        if (fov == 0.0f)
+            fov = m_start_fov;
+        
+        m_start_fov = fov;
+        m_fov = m_start_fov;
+        m_proj = glm::perspective(glm::radians(m_fov), m_aspect_ratio, m_z_near, m_z_far);
+    }
+};
+
+struct dynamic_camera
+{
+    glm::mat4 m_view;
+
+    glm::vec3 m_start_pos;
+    glm::vec3 m_start_look_at;
+
+    glm::vec3 m_pos;
+
+    glm::vec3 m_front;
+    glm::vec3 m_right;
+    glm::vec3 m_up;
+
+    float pitch, yaw;
+
+    dynamic_camera(const glm::vec3& start_pos, const glm::vec3& start_look_at, const glm::vec3& world_up = glm::vec3{0.0f, 1.0f, 0.0f}) noexcept
+        : m_start_pos(start_pos), m_start_look_at(start_look_at), m_pos(start_pos)
+    {
+        m_view = glm::lookAt(m_pos, m_start_look_at, world_up);
+
+        m_front = glm::normalize(m_start_look_at - m_pos);
+        m_right = glm::normalize(glm::cross(m_front, world_up));
+        m_up = glm::normalize(glm::cross(m_right, m_front));
+
+        pitch = glm::degrees(glm::asin(m_front.y));
+        yaw = glm::degrees(glm::asin(m_front.z / glm::cos(glm::radians(pitch))));
+    }
+
+    void move(const glm::vec3& offset) noexcept
+    {
+        m_pos += offset;
+        m_view = glm::translate(m_view, -offset);
+    }
+
+    void rotate(const glm::vec2& cursor_offset, const glm::vec3& world_up = glm::vec3{0.0f, 1.0f, 0.0f}) noexcept
+    {
+        // using radial coords in 3d to calculate the new forward direction
+        yaw += cursor_offset.x;
+        pitch += cursor_offset.y;
+        pitch = glm::clamp(pitch, -89.0f, 89.0f);
+
+        m_front = glm::normalize(glm::vec3{
+            glm::cos(glm::radians(yaw)) * glm::cos(glm::radians(pitch)),
+            glm::sin(glm::radians(pitch)),
+            glm::sin(glm::radians(yaw)) * glm::cos(glm::radians(pitch))
+        });
+
+        m_right = glm::normalize(glm::cross(m_front, world_up));
+        m_up = glm::normalize(glm::cross(m_right, m_front));
+
+        // calculate view matrix
+        m_view = glm::lookAt(m_pos, m_pos + m_front, world_up);
+    }
+
+    void reset(const glm::vec3& world_up = glm::vec3{0.0f, 1.0f, 0.0f}) noexcept
+    {
+        m_pos = m_start_pos;
+        m_view = glm::lookAt(m_pos, m_start_look_at, world_up);
+        
+        m_front = glm::normalize(m_start_look_at - m_pos);
+        m_right = glm::normalize(glm::cross(m_front, world_up));
+        m_up = glm::normalize(glm::cross(m_right, m_front));
+
+        pitch = glm::degrees(glm::asin(m_front.y));
+        yaw = glm::degrees(glm::asin(m_front.z / glm::cos(glm::radians(pitch))));
     }
 };
 

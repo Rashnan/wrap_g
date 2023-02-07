@@ -80,12 +80,26 @@ void create_materials() noexcept
 
     // logic
 
-    // consists of glm::mat4 one for proj and one for view
-    wrap_g::observer<> camera;
+    glm::vec3 world_up {0.0f, 1.0f, 0.0f};
 
-    camera._proj = glm::perspective(30.0f, win.width()/(float)win.height(), 0.1f, 100.0f);
+    wrap_g::observer camera;
 
-    float look_sens = 30.0f, move_sens = 10.0f, zoom_sens = 100.0f;
+    wrap_g::perspective_camera pers_cam(30.0f, win.width() / (float)win.height(), 0.1f, 100.0f);
+    wrap_g::dynamic_camera dyn_cam({0.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.0f}, world_up);
+
+    bool first_mouse = false;
+
+    // float last_x = win.width() / 2.0f, last_y = win.height() / 2.0f;
+    glm::vec2 last_cursor = glm::vec2{win.width(), win.height()} / 2.0f;
+
+    // the various sensitivities
+    // look sens is for camera rotation along with the mouse
+    // movement sens is for camera movement within the world
+    // zoom sens is for camera zoom or fov control
+    float look_sens = 300.0, move_sens = 10.0, zoom_sens = 100.0;
+    
+    // hide the cursor
+    glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // gives a glm::vec4 containing the rgba color values
     constexpr auto blue = utils::hex("#111b24");
@@ -100,13 +114,13 @@ void create_materials() noexcept
 
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
     // reads the file right now.
-    bool success = test.prog_quick({
+    bool success = test._base_gl._prog.quick({
         {GL_VERTEX_SHADER, {utils::read_file_sync(vert_path)}},
         {GL_FRAGMENT_SHADER, {utils::read_file_sync(frag_path)}}
     });
 #else
     // if shader source still has not loaded, force main thread to wait.
-    bool success = test.prog_quick<std::string>({
+    bool success = test._base_gl._prog.quick<std::string>({
         {GL_VERTEX_SHADER, {load_vert_src.get()}},
         {GL_FRAGMENT_SHADER, {load_frag_src.get()}}
     });
@@ -115,12 +129,13 @@ void create_materials() noexcept
     if (!success)
         return;
 
-    test.save_uniforms("proj", "view", "model", "col");
-    
-    test.set_uniform_mat<4>("proj", glm::value_ptr(camera._proj));
-    test.set_uniform_mat<4>("view", glm::value_ptr(camera._view));
-    test.set_uniform_mat<4>("model", glm::value_ptr(test._base._model));
-    test.set_uniform_vec<4>("col", glm::value_ptr(yellow));
+    enum class TEST_UNIFORMS { PROJ, VIEW, MODEL, COL };
+    const auto test_uniforms = test._base_gl._prog.uniform_locations("proj", "view", "model", "col");
+
+    test._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)TEST_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+    test._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)TEST_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+    test._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)TEST_UNIFORMS::MODEL], glm::value_ptr(test._base._model));
+    test._base_gl._prog.set_uniform_vec<4>(test_uniforms[(int)TEST_UNIFORMS::COL], glm::value_ptr(yellow));
 
     glEnable(GL_DEPTH_TEST);
 
@@ -143,37 +158,96 @@ void create_materials() noexcept
         // checks every time for event
         glfwPollEvents();
 
-        if (win.get_key(GLFW_KEY_W) == GLFW_PRESS)
+        // look direction
+        // rotate camera along with mouse rotation
+        // but only if user is pressing left click
+        if (win.get_mouse_button(GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
         {
-            camera._view = glm::translate(camera._view, utils::front(camera._view) * dt * move_sens);
+            auto cursor = win.get_cursor_position();
+            
+            if (first_mouse)
+            {
+                // basically ignore first mouse
+                first_mouse = false;
+            }
+            else
+            {
+                // calculate how far the mouse is from last position
+                glm::vec2 cursor_offset = glm::vec2{cursor.first, cursor.second} - last_cursor;
+                // y axis is flipped as y is measured from top to bottom
+                // top of screen is y=0 when we get the cursor position
+                cursor_offset *= glm::vec2{1, -1} * look_sens * dt;
+                dyn_cam.rotate(cursor_offset, world_up);
+            }
+
+            // update last cursor position
+            last_cursor = glm::vec2{cursor.first, cursor.second};
         }
 
-        if (win.get_key(GLFW_KEY_S) == GLFW_PRESS)
-        {
-            camera._view = glm::translate(camera._view, -utils::front(camera._view) * dt * move_sens);
-        }
-        
+        // movement
+
+        // move left
         if (win.get_key(GLFW_KEY_A) == GLFW_PRESS)
         {
-            camera._view = glm::translate(camera._view, -utils::right(camera._view) * dt * move_sens);
+            auto&& offset = - dyn_cam.m_right * move_sens * dt;
+            dyn_cam.move(offset);
         }
 
+        // move right
         if (win.get_key(GLFW_KEY_D) == GLFW_PRESS)
         {
-            camera._view = glm::translate(camera._view, utils::right(camera._view) * dt * move_sens);
-        }
-
-        if (win.get_key(GLFW_KEY_SPACE) == GLFW_PRESS)
-        {
-            camera._view = glm::translate(camera._view, utils::up(camera._view) * dt * move_sens);
-        }
-
-        if (win.get_key(GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        {
-            camera._view = glm::translate(camera._view, -utils::up(camera._view) * dt * move_sens);
+            auto&& offset = dyn_cam.m_right * move_sens * dt;
+            dyn_cam.move(offset);
         }
         
-        test.set_uniform_mat<4>("view", glm::value_ptr(camera._view));
+        // move forward
+        if (win.get_key(GLFW_KEY_W) == GLFW_PRESS)
+        {
+            auto&& offset = dyn_cam.m_front * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+
+        // move backward
+        if (win.get_key(GLFW_KEY_S) == GLFW_PRESS)
+        {
+            auto&& offset = - dyn_cam.m_front * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+        
+        // move upwards
+        if (win.get_key(GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            auto&& offset = dyn_cam.m_up * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+
+        // move downwards
+        if (win.get_key(GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            auto&& offset = - dyn_cam.m_up * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+        
+        // zoom event
+        if (win.get_key(GLFW_KEY_Z) == GLFW_PRESS)
+        {
+            pers_cam.adjust_fov(-(win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * zoom_sens * dt);
+            test._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)TEST_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+        }
+
+        // * Reset all variables to their original values
+        // * This includes position and cursor position and tex mix
+        if (win.get_key(GLFW_KEY_R) == GLFW_PRESS)
+        {
+            glfwSetCursorPos(win.win(), (double)win.width() / 2.0, (double)win.height() / 2.0);
+            first_mouse = true;
+            dyn_cam.reset(world_up);
+            pers_cam.reset_fov();
+            test._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)TEST_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+        }
+
+
+        test._base_gl._prog.set_uniform_mat<4>(test_uniforms[(int)TEST_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
 
         watch.start();
 

@@ -908,12 +908,7 @@ namespace utils
             // TODO: add factor based algorithm here
         }
     }
-
-    glm::vec3 right(const glm::mat4& mat) noexcept { return {mat[0][0], mat[0][1], mat[0][2]}; }
-    glm::vec3 up(const glm::mat4& mat) noexcept { return {mat[1][0], mat[1][1], mat[1][2]}; }
-    glm::vec3 front(const glm::mat4& mat) noexcept { return {mat[2][0], mat[2][1], mat[2][2]}; }
-    glm::vec3 position(const glm::mat4& mat) noexcept { return {mat[3][0], mat[3][1], mat[3][2]}; }
-
+    
     template <typename T>
     requires std::equality_comparable<T>
     bool one_of(const T &val, const std::initializer_list<T> &list) noexcept
