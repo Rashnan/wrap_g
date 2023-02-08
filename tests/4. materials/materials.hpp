@@ -132,7 +132,6 @@ void create_materials() noexcept
     mat_list_str = load_mat_list.get();
 #endif
 
-    // TODO: create csv reader and allow switching between materials using keypress
     std::vector<Material> materials_list;
 
     Material cube_mat {

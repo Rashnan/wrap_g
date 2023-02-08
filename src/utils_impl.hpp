@@ -804,6 +804,54 @@ namespace utils
             return data;
         }
     }
+    
+    template<typename ... Ts>
+    std::vector<std::tuple<Ts...>> read_csv_sync(const char *path, bool has_headers) noexcept
+    {
+        std::vector<std::tuple<Ts...>> data;
+        constexpr size_t data_size = sizeof...(Ts);
+        std::array<std::string, data_size> headers;
+        std::ifstream file;
+        file.exceptions(std::ifstream::badbit | std::ifstream::failbit);
+        try
+        {
+            file.open(path);
+            std::tuple<Ts...> row;
+
+            // !! NOT SEPERATING BY COMMAS
+
+            auto helper = [&file, &row]<size_t ... Is>(std::index_sequence<Is...>) {
+                return ((file >> std::get<Is>(row)) && ...);
+            };
+
+            auto headers_helper = [&file, &headers]<size_t ... Is>(std::index_sequence<Is...>) {
+                return ((file >> headers.at(Is)) && ...);
+            };
+
+            try {
+                if (has_headers)
+                    headers_helper(std::make_index_sequence<data_size>{});
+
+                while (helper(std::make_index_sequence<data_size>{}))
+                    data.push_back(row);
+                
+            } catch (const std::exception& e) {
+                // ! May not be file problem
+                // ! May be tuple not matching with file.
+                // ! May be headers not being declared or vice versa
+                // ! May be headers len not matching data len
+                std::cout << "[utils] Error: Failed to read csv. " << e.what() << "\n";
+            }
+
+            file.close();
+            return data;
+        }
+        catch (const std::ifstream::failure &e)
+        {
+            std::cout << "[utils] Error: Failed to read file " << path << ". Code: " << e.code() << ", Message: " << e.what() << ".\n";
+            return data;
+        }
+    }
 
     std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept
     {
@@ -921,6 +969,16 @@ namespace utils
         return false;
     }
 
+    template<auto Start, auto End, auto Inc, typename Fn>
+    constexpr void constexpr_for(Fn&& fn) noexcept
+    {
+        if constexpr (Start < End)
+        {
+            fn(std::integral_constant<decltype(Start), Start>());
+            constexpr_for<Start + Inc, End, Inc>(fn);
+        }
+    }
+
     template<typename T, typename U, typename V, typename W>
     requires (std::is_floating_point_v<T> || std::is_integral_v<T>)
         && (std::is_floating_point_v<U> || std::is_integral_v<U>)
@@ -1027,11 +1085,19 @@ namespace utils
         std::cout << "\n";    
     }
 
+    template<typename Tuple, size_t ... Is>
+    void print_tuple_impl(const Tuple& tup, std::index_sequence<Is...>)
+    {
+        ((std::cout << (Is == 0 ? "" : ", ") << std::get<Is>(tup)), ... );
+    }
+
     template<typename ... Ts>
     requires (Printable<Ts> && ...)
-    void print_all(const Ts&... args)
+    void print_tuple(const std::tuple<Ts...>& tup) noexcept
     {
-        (std::cout << ... << args) << '\n';
+        std::cout << "(";
+        print_tuple_impl(tup, std::make_index_sequence<sizeof...(Ts)>{});
+        std::cout << ")\n";
     }
 
     template <typename T>
@@ -1046,6 +1112,13 @@ namespace utils
     void print(const T* ptr, Fn fn) noexcept
     {
         std::cout << fn(ptr) << "\n";
+    }
+
+    template<typename ... Ts>
+    requires (Printable<Ts> && ...)
+    void print_all(const Ts&... args)
+    {
+        (std::cout << ... << args) << '\n';
     }
 
     template<size_t Dimensions>
@@ -1333,31 +1406,6 @@ namespace utils
 
             // RIGHT FACE
             right, right, right, right, right, right,
-        };
-    }
-    
-    constexpr std::array<glm::vec3, 6> __gen_cube_normals(const glm::vec3& start, const glm::vec3& end) noexcept
-    {
-        glm::vec3 dir = end - start;
-        glm::vec3 right, up, forward;
-        right = glm::vec3{dir.x, 0.0f, 0.0f};
-        up = glm::vec3{0.0f, dir.y, 0.0f};
-        forward = glm::vec3{0.0f, 0.0f, dir.z};
-
-        return std::array{
-            // BACK FACE
-            -forward,
-            // BOTTOM FACE
-            -up,
-            // LEFT FACE
-            -right,
-            // reflect on primary axis
-            // FRONT FACE
-            forward,
-            // TOP FACE
-            up,
-            // RIGHT FACE
-            right,
         };
     }
 } // namespace utils

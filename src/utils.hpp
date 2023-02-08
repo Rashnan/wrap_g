@@ -308,6 +308,9 @@ namespace utils
     std::future<std::string> read_file_async(const char *path) noexcept;
     std::vector<unsigned char> read_file_bytes_sync(const char *path) noexcept;
     std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept;
+
+    template<typename ... Ts>
+    std::vector<std::tuple<Ts...>> read_csv_sync(const char *path, bool has_headers = true) noexcept;
     
     template<size_t Width, size_t Height, typename T>
     requires std::swappable<T> && (Width > 0) && (Height > 0)
@@ -321,6 +324,9 @@ namespace utils
     requires std::equality_comparable<T>
     bool one_of(const T &val, const std::initializer_list<T> &list) noexcept;
     
+    template<auto Start, auto End, auto Inc, typename Fn>
+    constexpr void constexpr_for(Fn&& fn) noexcept;
+
     template<typename T, typename U, typename V, typename W = float>
     requires (std::is_floating_point_v<T> || std::is_integral_v<T>)
         && (std::is_floating_point_v<U> || std::is_integral_v<U>)
@@ -341,6 +347,10 @@ namespace utils
     void print_vecs(const T *ptr) noexcept;
 
     // TODO: print maps
+
+    template<typename ... Ts>
+    requires (Printable<Ts> && ...)
+    void print_tuple(const std::tuple<Ts...>& tup) noexcept;
 
     template <typename T>
     requires Printable<T>
