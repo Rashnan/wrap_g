@@ -294,8 +294,36 @@ namespace utils
     std::vector<unsigned char> read_file_bytes_sync(const char *path) noexcept;
     std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept;
 
-    template<typename ... Ts>
-    std::vector<std::tuple<Ts...>> read_csv_sync(const char *path, bool has_headers = true) noexcept;
+    constexpr auto strto = []<typename data_t>(data_t& data, std::string str){
+        if constexpr (std::is_same_v<data_t, unsigned> || std::is_same_v<data_t, unsigned long>) {
+            data = std::stoul(str);
+        }
+        if constexpr (std::is_same_v<data_t, unsigned long long>) {
+            data = std::stoull(str);
+        }
+        if constexpr (std::is_same_v<data_t, long>) {
+            data = std::stol(str);
+        }
+        if constexpr (std::is_same_v<data_t, long long>) {
+            data = std::stoll(str);
+        }
+        if constexpr (std::is_same_v<data_t, int>) {
+            data = std::stoi(str);
+        }
+        if constexpr (std::is_same_v<data_t, float>) {
+            data = std::stof(str);
+        }
+        if constexpr (std::is_same_v<data_t, double>) {
+            data = std::stod(str);
+        }
+        if constexpr (std::is_same_v<data_t, std::string>) {
+            data = str;
+        }
+    };
+
+    template<typename ... Ts, typename Fn>
+    std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
+    read_csv_sync(const char *path, bool has_headers, Fn&& fn) noexcept;
     
     template<size_t Width, size_t Height, typename T>
     requires std::swappable<T> && (Width > 0) && (Height > 0)
@@ -308,7 +336,8 @@ namespace utils
     template <typename T>
     requires std::equality_comparable<T>
     bool one_of(const T &val, const std::initializer_list<T> &list) noexcept;
-    
+
+    // taken from an article
     template<auto Start, auto End, auto Inc, typename Fn>
     constexpr void constexpr_for(Fn&& fn) noexcept;
 

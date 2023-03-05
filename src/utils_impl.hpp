@@ -805,51 +805,100 @@ namespace utils
         }
     }
     
-    template<typename ... Ts>
-    std::vector<std::tuple<Ts...>> read_csv_sync(const char *path, bool has_headers) noexcept
+    template<typename ... Ts, typename Fn>
+    std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
+    read_csv_sync(const char *path, bool has_headers, Fn&& fn) noexcept
     {
         std::vector<std::tuple<Ts...>> data;
         constexpr size_t data_size = sizeof...(Ts);
         std::array<std::string, data_size> headers;
+
         std::ifstream file;
         file.exceptions(std::ifstream::badbit | std::ifstream::failbit);
         try
         {
             file.open(path);
-            std::tuple<Ts...> row;
 
-            // !! NOT SEPERATING BY COMMAS
+            std::array<std::string, data_size> row_str_arr;
+            std::string row_str;
 
-            auto helper = [&file, &row]<size_t ... Is>(std::index_sequence<Is...>) {
-                return ((file >> std::get<Is>(row)) && ...);
-            };
+            std::getline(file, row_str);
 
-            auto headers_helper = [&file, &headers]<size_t ... Is>(std::index_sequence<Is...>) {
-                return ((file >> headers.at(Is)) && ...);
-            };
+            auto start = 0;
+            bool is_header = false;
 
-            try {
-                if (has_headers)
-                    headers_helper(std::make_index_sequence<data_size>{});
+            if (has_headers)
+            {    
+                is_header = true;
+            }
 
-                while (helper(std::make_index_sequence<data_size>{}))
-                    data.push_back(row);
+            int param = 0;
+
+            while (row_str.find_first_of(',') != std::string::npos)
+            {
+                auto end = row_str.find_first_of(',', start);
+                if (end == std::string::npos)
+                {
+                    end = row_str.find_first_of('\n', start);
+                }
+                if (end == std::string::npos)
+                {
+                    end = row_str.size();
+                }
+
+                std::string str = row_str.substr(start, end - start);
+
+                if (is_header)
+                {
+                    headers[param] = str;
+                }
+                else
+                {
+                    row_str_arr[param] = str;
+                }
+
+                ++param;
                 
-            } catch (const std::exception& e) {
-                // ! May not be file problem
-                // ! May be tuple not matching with file.
-                // ! May be headers not being declared or vice versa
-                // ! May be headers len not matching data len
-                std::cout << "[utils] Error: Failed to read csv. " << e.what() << "\n";
+                start = row_str.find_first_of(',', start) + 1;
+
+                if (param == std::tuple_size_v<std::tuple<Ts...>>)
+                {
+                    if (!is_header)
+                    {
+                        std::tuple<Ts ...> tup{};
+
+                        utils::constexpr_for<0, row_str_arr.size(), 1>([&row_str_arr, &tup, fn](auto i){
+                            fn(std::get<i>(tup), row_str_arr[i]);
+                        });
+
+                        data.push_back(tup);
+                        // data.push_back(fn(row_str_arr));
+                    }
+                    else
+                    {
+                        is_header = false;
+                    }
+
+                    try {
+                        std::getline(file, row_str);
+                    }
+                    catch (const std::ifstream::failure &e)
+                    {
+                        break;
+                    }
+
+                    start = 0;
+                    param = 0;
+                }
             }
 
             file.close();
-            return data;
+            return std::make_pair(headers, data);
         }
         catch (const std::ifstream::failure &e)
         {
             std::cout << "[utils] Error: Failed to read file " << path << ". Code: " << e.code() << ", Message: " << e.what() << ".\n";
-            return data;
+            return std::make_pair(headers, data);
         }
     }
 
