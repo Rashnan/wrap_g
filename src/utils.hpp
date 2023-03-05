@@ -61,21 +61,6 @@ namespace utils
     {
         out << fn(t);
     };
-    
-    template<bool async = true, bool bytes = false>
-    struct _wrap_g_read_file_ret { typedef std::future<std::string> type; };
-
-    template<>
-    struct _wrap_g_read_file_ret<true, true> { typedef std::future<std::vector<unsigned char>> type; };
-    
-    template<>
-    struct _wrap_g_read_file_ret<false, true> { typedef std::vector<unsigned char> type; };
-
-    template<>
-    struct _wrap_g_read_file_ret<false, false> { typedef std::string type; };
-
-    template<bool async, bool bytes>
-    using _wrap_g_read_file_ret_t = _wrap_g_read_file_ret<async, bytes>::type;
 
     ////////
     // declarations
