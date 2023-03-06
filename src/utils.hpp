@@ -258,6 +258,7 @@ namespace utils
         void start() noexcept;
 
         template <typename DurationUnit = ms>
+        requires is_one_of<DurationUnit, y, m, d, hr, min, s, ms, us, ns>
         [[nodiscard]] int stop() noexcept;
     };
 
@@ -294,7 +295,9 @@ namespace utils
     std::vector<unsigned char> read_file_bytes_sync(const char *path) noexcept;
     std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept;
 
-    constexpr auto strto = []<typename data_t>(data_t& data, std::string str){
+    // * Does not work with read_csv_sync regular template function. Not sure why.
+    constexpr auto strto = []<typename data_t>(data_t& data, std::string str)
+    {
         if constexpr (std::is_same_v<data_t, unsigned> || std::is_same_v<data_t, unsigned long>) {
             data = std::stoul(str);
         }
@@ -325,6 +328,30 @@ namespace utils
     std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
     read_csv_sync(const char *path, bool has_headers, Fn&& fn) noexcept;
     
+    template<typename ... Ts, typename Fn>
+    std::future<std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>>
+    read_csv_async(const char *path, bool has_headers, Fn&& fn) noexcept;
+    
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn>
+    void set_timeout(int timeout, Fn&& fn) noexcept;
+
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn, bool&>
+    void set_interval(int interval, Fn&& fn) noexcept;
+    
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn>
+    [[nodiscard]] std::future<void> set_timeout_async(int timeout, Fn&& fn) noexcept;
+
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn, bool&>
+    [[nodiscard]] std::future<void> set_interval_async(int interval, Fn&& fn) noexcept;
+
     template<size_t Width, size_t Height, typename T>
     requires std::swappable<T> && (Width > 0) && (Height > 0)
     void flip_array2d(T *ptr, bool horizontally = false, bool vertically = false) noexcept;

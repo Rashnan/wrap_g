@@ -677,7 +677,7 @@ namespace utils
     }
 
     template <typename DurationUnit>
-    // requires ClockUnit<DurationUnit>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
     [[nodiscard]] int timer::stop() noexcept
     {
         return std::chrono::duration_cast<DurationUnit>(clock::now() - m_start).count();
@@ -805,6 +805,13 @@ namespace utils
         }
     }
     
+    std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept
+    {
+        return std::async(std::launch::async, [path](){
+            return read_file_bytes_sync(path);
+        });
+    }
+
     template<typename ... Ts, typename Fn>
     std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
     read_csv_sync(const char *path, bool has_headers, Fn&& fn) noexcept
@@ -902,10 +909,69 @@ namespace utils
         }
     }
 
-    std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept
+    template<typename ... Ts, typename Fn>
+    std::future<std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>>
+    read_csv_async(const char *path, bool has_headers, Fn&& fn) noexcept
     {
-        return std::async(std::launch::async, [path](){
-            return read_file_bytes_sync(path);
+        return std::async(std::launch::async, [path, has_headers, &fn](){
+            return read_csv_sync<Ts ...>(path, has_headers, fn);
+        });
+    }
+
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn>
+    void set_timeout(int timeout, Fn&& fn) noexcept
+    {
+        utils::timer t1;
+        t1.start();
+        while (timeout > t1.stop<DurationUnit>()){};
+        fn();
+    }
+
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn, bool&>
+    void set_interval(int interval, Fn&& fn) noexcept
+    {
+        utils::timer t1;
+        t1.start();
+        int now = 0, old = 0;
+        bool end = false;
+        while (!end)
+        {
+            now = t1.stop<DurationUnit>();
+            if (now - old > interval) {
+                old = now;
+                fn(end);
+            }
+        }
+    }
+    
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn>
+    [[nodiscard]] std::future<void> set_timeout_async(int timeout, Fn&& fn) noexcept
+    {
+        return std::async(std::launch::async, [timeout, &fn](){
+            std::this_thread::sleep_for(DurationUnit(timeout));
+
+            fn();
+        });
+    }
+
+    template<typename DurationUnit = timer::ms, typename Fn>
+    requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
+            && std::is_invocable_v<Fn, bool&>
+    [[nodiscard]] std::future<void> set_interval_async(int interval, Fn&& fn) noexcept
+    {
+        return std::async(std::launch::async, [interval, &fn](){
+            bool end = false;
+            while (!end)
+            {
+                std::this_thread::sleep_for(DurationUnit(interval));
+                fn(end);
+            }
         });
     }
 

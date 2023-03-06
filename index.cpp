@@ -19,21 +19,21 @@ int main()
     // wrap_tests::create_triangle();
     // wrap_tests::create_textured_rect();
     // wrap_tests::create_moving_around_cubes();
-    // wrap_tests::create_materials();
+    wrap_tests::create_materials();
 
-    auto read_csv = utils::read_csv_sync<
-        std::string,
-        double, double, double,
-        double, double, double,
-        double, double, double,
-        double
-    >("./tests/4. materials/materials list.csv", true, utils::strto);
+    // auto read_csv = utils::read_csv_sync<
+    //     std::string,
+    //     double, double, double,
+    //     double, double, double,
+    //     double, double, double,
+    //     double
+    // >("./tests/4. materials/materials list.csv", true, utils::strto);
 
-    if (read_csv.second.size() > 0) {
-        std::cout << "\ndone\n";
-        utils::print_vecs<11>(read_csv.first.data());
-        utils::print_tuple(read_csv.second[0]);
-    }
+    // if (read_csv.second.size() > 0) {
+    //     std::cout << "\ndone\n";
+    //     utils::print_vecs<11>(read_csv.first.data());
+    //     utils::print_tuple(read_csv.second[0]);
+    // }
 
     return 0;
 }

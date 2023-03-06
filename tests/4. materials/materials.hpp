@@ -77,7 +77,13 @@ void create_materials() noexcept
     auto load_vert_src = utils::read_file_async(vert_path);
     auto load_frag_src = utils::read_file_async(frag_path);
     auto load_light_frag_src = utils::read_file_async(light_frag_path);
-    auto load_mat_list = utils::read_file_async(materials_list_path);
+    auto load_mat_list = utils::read_csv_async<
+        std::string,
+        double, double, double,
+        double, double, double,
+        double, double, double,
+        double
+    >(materials_list_path, true, utils::strto);
 #endif
 
     ////
@@ -122,24 +128,40 @@ void create_materials() noexcept
         glm::vec3 diffuse;
         glm::vec3 specular;
         float shininess;
+
+        Material(const std::tuple<
+            std::string,
+            double, double, double,
+            double, double, double,
+            double, double, double,
+            double
+        >& tup) noexcept
+            : ambient{std::get<1>(tup), std::get<2>(tup), std::get<3>(tup)},
+            diffuse{std::get<4>(tup), std::get<5>(tup), std::get<4>(tup)},
+            specular{std::get<7>(tup), std::get<8>(tup), std::get<9>(tup)},
+            shininess{std::get<10>(tup) * 128.0}
+        {
+        }
     };
-
-    std::string mat_list_str;
-
+ 
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
-    mat_list_str = utils::read_file_sync(materials_list_path);    
+    auto mat_list_pair = utils::read_csv_sync(materials_list_path);
 #else
-    mat_list_str = load_mat_list.get();
+    auto mat_list_pair = load_mat_list.get();
 #endif
 
     std::vector<Material> materials_list;
 
-    Material cube_mat {
-        .ambient = glm::vec3{0.1745f, 0.01175f, 0.01175f},
-        .diffuse = glm::vec3{0.61424f, 0.04136f, 0.04136f},
-        .specular = glm::vec3{0.727811f, 0.626959f, 0.626959f},
-        .shininess = 128.0f * 0.6f,
-    };
+    // Material cube_mat {
+    //     .ambient = glm::vec3{0.1745f, 0.01175f, 0.01175f},
+    //     .diffuse = glm::vec3{0.61424f, 0.04136f, 0.04136f},
+    //     .specular = glm::vec3{0.727811f, 0.626959f, 0.626959f},
+    //     .shininess = 128.0f * 0.6f,
+    // };
+
+    double curr_mat = 0;
+    Material cube_mat(mat_list_pair.second[(size_t)std::round(curr_mat)]);
+    double mat_change_sens = 10;
 
     // ! note different from frag shader
     // ! no pos
@@ -246,6 +268,7 @@ void create_materials() noexcept
     light_gl._base_gl._prog.set_uniform_vec<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::COL], glm::value_ptr(white));
 
     bool reloading_shaders = false;
+    bool loaded_mat_list = false;
     bool loaded_vert_src = false;
     bool loaded_frag_src = false;
     bool loaded_light_frag_src = false;
@@ -275,6 +298,9 @@ void create_materials() noexcept
         {
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
             // reads the file right now.
+            
+            mat_list_pair = utils::read_csv_sync(materials_list_path);
+
             vert_src = utils::read_file_sync(vert_path);
             frag_src = utils::read_file_sync(frag_path);
             light_frag_src = utils::read_file_sync(light_frag_path);
@@ -292,6 +318,16 @@ void create_materials() noexcept
             });
 #else
             // if shader source still has not loaded, force main thread to wait.
+
+            auto load_mat_list = std::async([&loaded_mat_list, &materials_list_path, &mat_list_pair](){
+                mat_list_pair = utils::read_csv_sync<
+                    std::string,
+                    double, double, double,
+                    double, double, double,
+                    double, double, double,
+                    double
+                >(materials_list_path, true, utils::strto);
+            });
 
             load_vert_src = std::async([&loaded_vert_src, &vert_path, &vert_src](){
                 loaded_vert_src = false;
@@ -314,7 +350,7 @@ void create_materials() noexcept
                 return light_frag_src;
             });
 
-            if (loaded_vert_src && loaded_frag_src && loaded_light_frag_src)
+            if (loaded_mat_list && loaded_vert_src && loaded_frag_src && loaded_light_frag_src)
             {
                 cube_gl._base_gl._prog.flush_shaders();
                 success = cube_gl._base_gl._prog.quick({
@@ -329,6 +365,8 @@ void create_materials() noexcept
                 });
             }
 #endif
+            curr_mat = 0;
+            cube_mat = Material(mat_list_pair.second[(size_t)std::round(curr_mat)]);
 
             // Increases in uniforms cannot be hot reloaded as the new variables need to be initialized in the cpp file
             // Depending on changes GPU mmay optimize out some uniforms but this will NOT cause any errors in setting them
@@ -447,6 +485,19 @@ void create_materials() noexcept
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
         }
 
+        if (win.get_key(GLFW_KEY_M) == GLFW_PRESS)
+        {
+            curr_mat += (win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * mat_change_sens * dt;
+            curr_mat = glm::clamp(curr_mat, 0.0, (double)mat_list_pair.second.size() - 1.0);
+
+            cube_mat = Material(mat_list_pair.second[(size_t)std::round(curr_mat)]);
+
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_AMBIENT], glm::value_ptr(cube_mat.ambient));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], glm::value_ptr(cube_mat.diffuse));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], glm::value_ptr(cube_mat.specular));
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
+        }
+
         // * Reset all variables to their original values
         // * This includes position and cursor position and tex mix
         if (win.get_key(GLFW_KEY_R) == GLFW_PRESS)
@@ -458,6 +509,14 @@ void create_materials() noexcept
 
             cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            
+            curr_mat = 0;
+            cube_mat = Material(mat_list_pair.second[(size_t)std::round(curr_mat)]);
+            
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_AMBIENT], glm::value_ptr(cube_mat.ambient));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], glm::value_ptr(cube_mat.diffuse));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], glm::value_ptr(cube_mat.specular));
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
         }
 
         if (win.get_key(GLFW_KEY_T) == GLFW_PRESS && !reloading_shaders){ reloading_shaders = true; }
