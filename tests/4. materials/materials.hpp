@@ -9,7 +9,9 @@
 
 namespace wrap_tests
 {
-    
+
+// TODO: Bug about rotation... sometimes it freaks out and rotates randomly... fix unknown
+
 void create_materials() noexcept
 {
 #if WRAP_G_DEBUG
@@ -68,6 +70,42 @@ void create_materials() noexcept
 
     constexpr const char *stats_loc = "./tests/4. materials/stats.csv";
 
+    struct Material {
+        glm::vec3 ambient;
+        glm::vec3 diffuse;
+        glm::vec3 specular;
+        float shininess;
+
+        // Material(const std::tuple<
+        //     std::string,
+        //     double, double, double,
+        //     double, double, double,
+        //     double, double, double,
+        //     double
+        // >& tup) noexcept
+        //     : ambient{std::get<1>(tup), std::get<2>(tup), std::get<3>(tup)},
+        //     diffuse{std::get<4>(tup), std::get<5>(tup), std::get<4>(tup)},
+        //     specular{std::get<7>(tup), std::get<8>(tup), std::get<9>(tup)},
+        //     shininess{(float)(std::get<10>(tup) * 128.0)}
+        // {
+        // }
+    };
+
+    // TODO: fix error with storing material list?
+    // ! the material shows changes in the shininess of one vertex?
+    // ! some vertices are brighter than they should be
+    // ! and it fades in and out like a circle around a corner vertex
+    // ! this SHOULD NOT happen.
+    auto read_mat_fn = [](const std::vector<std::string>& params){
+        // utils::print_vecs<11>(params.data());
+        return Material{
+            .ambient = glm::vec3{std::stof(params[1]), std::stof(params[2]), std::stof(params[3])},
+            .diffuse = glm::vec3{std::stof(params[4]), std::stof(params[5]), std::stof(params[6])},
+            .specular = glm::vec3{std::stof(params[7]), std::stof(params[8]), std::stof(params[9])},
+            .shininess = std::stof(params[10]),
+        };
+    };
+
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
     ////
     // background resource fetching
@@ -77,7 +115,7 @@ void create_materials() noexcept
     auto load_vert_src = utils::read_file_async(vert_path);
     auto load_frag_src = utils::read_file_async(frag_path);
     auto load_light_frag_src = utils::read_file_async(light_frag_path);
-    auto load_mat_list = utils::read_csv_async<
+    auto load_mat_list = utils::read_csv_tuple_async<
         std::string,
         double, double, double,
         double, double, double,
@@ -122,30 +160,16 @@ void create_materials() noexcept
     // zoom sens is for camera zoom or fov control
     float look_sens = 300.0, move_sens = 10.0, zoom_sens = 100.0;
     float cube_rotation_speed = 10.0f;
-
-    struct Material {
-        glm::vec3 ambient;
-        glm::vec3 diffuse;
-        glm::vec3 specular;
-        float shininess;
-
-        Material(const std::tuple<
-            std::string,
-            double, double, double,
-            double, double, double,
-            double, double, double,
-            double
-        >& tup) noexcept
-            : ambient{std::get<1>(tup), std::get<2>(tup), std::get<3>(tup)},
-            diffuse{std::get<4>(tup), std::get<5>(tup), std::get<4>(tup)},
-            specular{std::get<7>(tup), std::get<8>(tup), std::get<9>(tup)},
-            shininess{std::get<10>(tup) * 128.0}
-        {
-        }
-    };
  
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
-    auto mat_list_pair = utils::read_csv_sync(materials_list_path);
+    // auto mat_list_pair = utils::read_csv_tuple_sync<
+    //     std::string,
+    //     double, double, double,
+    //     double, double, double,
+    //     double, double, double,
+    //     double
+    // >(materials_list_path, true, utils::strto);
+    auto mat_list_pair = utils::read_csv_struct_sync<Material>(materials_list_path, true, read_mat_fn);
 #else
     auto mat_list_pair = load_mat_list.get();
 #endif
@@ -268,10 +292,13 @@ void create_materials() noexcept
     light_gl._base_gl._prog.set_uniform_vec<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::COL], glm::value_ptr(white));
 
     bool reloading_shaders = false;
+
+#if WRAP_G_BACKGROUND_RESOURCE_LOAD
     bool loaded_mat_list = false;
     bool loaded_vert_src = false;
     bool loaded_frag_src = false;
     bool loaded_light_frag_src = false;
+#endif
 
     glEnable(GL_DEPTH_TEST);
 
@@ -299,7 +326,7 @@ void create_materials() noexcept
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
             // reads the file right now.
             
-            mat_list_pair = utils::read_csv_sync(materials_list_path);
+            mat_list_pair = utils::read_csv_struct_sync<Material>(materials_list_path, true, read_mat_fn);
 
             vert_src = utils::read_file_sync(vert_path);
             frag_src = utils::read_file_sync(frag_path);
@@ -320,7 +347,7 @@ void create_materials() noexcept
             // if shader source still has not loaded, force main thread to wait.
 
             auto load_mat_list = std::async([&loaded_mat_list, &materials_list_path, &mat_list_pair](){
-                mat_list_pair = utils::read_csv_sync<
+                mat_list_pair = utils::read_csv_tuple_sync<
                     std::string,
                     double, double, double,
                     double, double, double,

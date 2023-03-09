@@ -813,8 +813,8 @@ namespace utils
     }
 
     template<typename ... Ts, typename Fn>
-    std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
-    read_csv_sync(const char *path, bool has_headers, Fn&& fn) noexcept
+    [[nodiscard]] std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
+    read_csv_tuple_sync(const char *path, bool has_headers, Fn&& fn) noexcept
     {
         std::vector<std::tuple<Ts...>> data;
         constexpr size_t data_size = sizeof...(Ts);
@@ -832,12 +832,7 @@ namespace utils
             std::getline(file, row_str);
 
             auto start = 0;
-            bool is_header = false;
-
-            if (has_headers)
-            {    
-                is_header = true;
-            }
+            bool is_header = has_headers;
 
             int param = 0;
 
@@ -879,7 +874,6 @@ namespace utils
                         });
 
                         data.push_back(tup);
-                        // data.push_back(fn(row_str_arr));
                     }
                     else
                     {
@@ -910,11 +904,87 @@ namespace utils
     }
 
     template<typename ... Ts, typename Fn>
-    std::future<std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>>
-    read_csv_async(const char *path, bool has_headers, Fn&& fn) noexcept
+    [[nodiscard]] std::future<std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>>
+    read_csv_tuple_async(const char *path, bool has_headers, Fn&& fn) noexcept
     {
         return std::async(std::launch::async, [path, has_headers, &fn](){
-            return read_csv_sync<Ts ...>(path, has_headers, fn);
+            return read_csv_tuple_sync<Ts ...>(path, has_headers, fn);
+        });
+    }
+
+    template<typename Struct, typename Fn>
+    requires std::is_invocable_r_v<Struct, Fn, const std::vector<std::string>&>
+    [[nodiscard]] std::pair<std::vector<std::string>, std::vector<Struct>>
+    read_csv_struct_sync(const char *path, bool has_headers, Fn&& fn) noexcept
+    {
+        std::vector<std::string> headers;
+        std::vector<Struct> data;
+
+        bool is_headers = has_headers;
+
+        std::ifstream file;
+        file.exceptions(std::ifstream::badbit | std::ifstream::failbit);
+        try
+        {
+            file.open(path);
+
+            while (!file.eof())
+            {
+                std::string str;
+                try
+                {
+                    std::getline(file, str);
+                }
+                catch (const std::ifstream::failure& e)
+                {
+                    continue;
+                }
+
+                std::vector<std::string> row_str;
+                
+                size_t start = 0;
+                size_t end = str.find_first_of(',');
+                while (end != std::string::npos)
+                {
+                    row_str.push_back(str.substr(start, end - start));
+
+                    start = end + 1;
+                    end = str.find_first_of(',', start);
+                }
+
+                if (start < str.size() - 1) {
+                    end = str.size();
+                    row_str.push_back(str.substr(start, end - start));
+                }
+
+                if (is_headers)
+                {
+                    headers = row_str;
+                    is_headers = false;
+                }
+                else
+                {
+                    // utils::print_vecs<11>(row_str.data());
+                    data.push_back(fn(row_str));
+                }
+            };
+
+            return std::make_pair(headers, data);
+        }
+        catch (const std::ifstream::failure& e)
+        {
+            std::cout << "[utils] Error: Failed to read file " << path << ". Code: " << e.code() << ", Message: " << e.what() << ".\n";
+            return std::make_pair(headers, data);
+        }
+    }
+    
+    template<typename Struct, typename Fn>
+    requires std::is_invocable_r_v<Struct, Fn, const std::vector<std::string>&>
+    [[nodiscard]] std::future<std::pair<std::vector<std::string>, std::vector<Struct>>>
+    read_csv_struct_async(const char *path, bool has_headers, Fn&& fn) noexcept
+    {
+        return std::async([path, has_headers, &fn](){
+            return read_csv_struct_sync<Struct>(path, has_headers, fn);
         });
     }
 
@@ -1156,6 +1226,7 @@ namespace utils
     }
 
     template <size_t rows, size_t cols, typename T>
+    requires Printable<T>
     void print_mat(const T *ptr) noexcept
     {
         for (size_t i = 0; i < rows; ++i)
@@ -1172,7 +1243,26 @@ namespace utils
         }
     }
 
+    template <size_t rows, size_t cols, typename T, typename Fn>
+    requires PrintableFn<T, Fn>
+    void print_mat(const T *ptr, Fn&& fn) noexcept
+    {
+        for (size_t i = 0; i < rows; ++i)
+        {
+            std::cout << "[";
+            for (size_t j = 0; j < cols; ++j)
+            {
+                std::cout << fn(*(ptr + i * cols + j));
+                // std::cout << ptr[i][j];
+                if (j != cols - 1)
+                    std::cout << ", ";
+            }
+            std::cout << "]\n";
+        }
+    }
+
     template <size_t vec_size, size_t n, typename T>
+    requires Printable<T>
     void print_vecs(const T *ptr) noexcept
     {
         if (n != 1)
@@ -1184,6 +1274,35 @@ namespace utils
             for (size_t j = 0; j < vec_size; ++j)
             {
                 std::cout << *(ptr + j + i * vec_size);
+                if (j != vec_size - 1)
+                    std::cout << ", ";
+            }
+            std::cout << "]";
+
+            if (i != n - 1)
+                std::cout << ", ";
+        }
+
+        if (n != 1)
+            std::cout << " ]";
+        
+        
+        std::cout << "\n";    
+    }
+
+    template <size_t vec_size, size_t n, typename T, typename Fn>
+    requires PrintableFn<T, Fn>
+    void print_vecs(const T *ptr, Fn&& fn) noexcept
+    {
+        if (n != 1)
+            std::cout << "[ ";
+
+        for (size_t i = 0; i < n; ++i)
+        {
+            std::cout << "[";
+            for (size_t j = 0; j < vec_size; ++j)
+            {
+                std::cout << fn(*(ptr + j + i * vec_size));
                 if (j != vec_size - 1)
                     std::cout << ", ";
             }

@@ -296,7 +296,14 @@ namespace utils
     std::vector<unsigned char> read_file_bytes_sync(const char *path) noexcept;
     std::future<std::vector<unsigned char>> read_file_bytes_async(const char *path) noexcept;
 
-    // * Does not work with read_csv_sync regular template function. Not sure why.
+    // ** NOTE: read_csv_tuple_sync vs read_csv_struct_sync work in different ways
+    // ** NOTE: the function provided in tuple version receives each seperate parameter
+    // ** NOTE: as a string and a reference to the tuple variable with the corresponding
+    // ** NOTE: data type. ** returns void, the reference should be set.
+    // ** NOTE: the function provided in struct version receives a vector containing
+    // ** NOTE: all the parameters as strings and should construct and return the type of struct
+
+    // * Does not work with read_csv_tuple_sync regular template function. Not sure why.
     constexpr auto strto = []<typename data_t>(data_t& data, std::string str)
     {
         if constexpr (std::is_same_v<data_t, unsigned> || std::is_same_v<data_t, unsigned long>) {
@@ -326,13 +333,23 @@ namespace utils
     };
 
     template<typename ... Ts, typename Fn>
-    std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
-    read_csv_sync(const char *path, bool has_headers, Fn&& fn) noexcept;
+    [[nodiscard]] std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>
+    read_csv_tuple_sync(const char *path, bool has_headers, Fn&& fn) noexcept;
     
     template<typename ... Ts, typename Fn>
-    std::future<std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>>
-    read_csv_async(const char *path, bool has_headers, Fn&& fn) noexcept;
+    [[nodiscard]] std::future<std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>>
+    read_csv_tuple_async(const char *path, bool has_headers, Fn&& fn) noexcept;
 
+    template<typename Struct, typename Fn>
+    requires std::is_invocable_r_v<Struct, Fn, const std::vector<std::string>&>
+    [[nodiscard]] std::pair<std::vector<std::string>, std::vector<Struct>>
+    read_csv_struct_sync(const char *path, bool has_headers, Fn&& fn) noexcept;
+    
+    template<typename Struct, typename Fn>
+    requires std::is_invocable_r_v<Struct, Fn, const std::vector<std::string>&>
+    [[nodiscard]] std::future<std::pair<std::vector<std::string>, std::vector<Struct>>>
+    read_csv_struct_async(const char *path, bool has_headers, Fn&& fn) noexcept;
+    
     template<typename DurationUnit = timer::ms, typename Fn>
     requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
             && std::is_invocable_v<Fn>
@@ -381,11 +398,22 @@ namespace utils
     // TODO add 3&4 size #rgba or #rgb
     consteval glm::vec4 hex(std::string_view&& code) noexcept;
 
-    // TODO: change T to printable
     template <size_t rows, size_t cols = rows, typename T = float>
+    requires Printable<T>
     void print_mat(const T *ptr) noexcept;
 
+    template <size_t rows, size_t cols = rows, typename T = float, typename Fn>
+    requires PrintableFn<T, Fn>
+    void print_mat(const T *ptr, Fn&& fn) noexcept;
+
+    // ! vec_size must be correct or else undefined behaviour such as inf print space or throw err not guranteed.
+    // TODO: throw err always
     template <size_t vec_size, size_t n = 1, typename T = float>
+    requires Printable<T>
+    void print_vecs(const T *ptr) noexcept;
+
+    template <size_t vec_size, size_t n = 1, typename T = float, typename Fn>
+    requires PrintableFn<T, Fn>
     void print_vecs(const T *ptr) noexcept;
 
     // TODO: print maps
