@@ -3,6 +3,7 @@
 
 // stl
 
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <array>
@@ -331,7 +332,7 @@ namespace utils
     template<typename ... Ts, typename Fn>
     std::future<std::pair<std::array<std::string, sizeof...(Ts)>, std::vector<std::tuple<Ts...>>>>
     read_csv_async(const char *path, bool has_headers, Fn&& fn) noexcept;
-    
+
     template<typename DurationUnit = timer::ms, typename Fn>
     requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
             && std::is_invocable_v<Fn>
