@@ -70,6 +70,7 @@ void create_materials() noexcept
 
     constexpr const char *stats_loc = "./tests/4. materials/stats.csv";
 
+    // the struct containing info about the material
     struct Material {
         glm::vec3 ambient;
         glm::vec3 diffuse;
@@ -77,13 +78,8 @@ void create_materials() noexcept
         float shininess;
     };
 
-    // TODO: fix error with storing material list?
-    // ! the material shows changes in the shininess of one vertex?
-    // ! some vertices are brighter than they should be
-    // ! and it fades in and out like a circle around a corner vertex
-    // ! this SHOULD NOT happen.
+    // the function that reads a std::string vec into a material
     auto read_mat_fn = [](const std::vector<std::string>& params){
-        // utils::print_vecs<11>(params.data());
         return Material{
             .ambient = glm::vec3{std::stof(params[1]), std::stof(params[2]), std::stof(params[3])},
             .diffuse = glm::vec3{std::stof(params[4]), std::stof(params[5]), std::stof(params[6])},
@@ -115,6 +111,8 @@ void create_materials() noexcept
     glm::vec3 light_pos {2.0f, 2.0f, -3.0f};
     glm::vec3 cube_pos {0.0f, 0.0f, -2.0f};
 
+    // wrap_g math stuff
+
     wrap_g::observer camera;
 
     wrap_g::object cube_obj;
@@ -129,6 +127,7 @@ void create_materials() noexcept
     wrap_g::perspective_camera pers_cam(30.0f, win.width() / (float)win.height(), 0.1f, 100.0f);
     wrap_g::dynamic_camera dyn_cam(cam_start_pos, cube_pos, world_up);
 
+    // first mouse needed for mouse rotation
     bool first_mouse = false;
 
     // float last_x = win.width() / 2.0f, last_y = win.height() / 2.0f;
@@ -170,8 +169,6 @@ void create_materials() noexcept
 
     // gives a glm::vec4 containing the rgba color values
     constexpr auto blue = utils::hex("#111b24");
-    constexpr auto yellow = utils::hex("#d2cb7f");
-    constexpr auto coral = utils::rgba(1.0f, 0.5f, 0.31f, 1.0f);
     constexpr auto white = utils::hex("#ffffff");
 
     // opengl rendering
@@ -181,6 +178,7 @@ void create_materials() noexcept
     wrap_g::cube cube_gl(win);
     wrap_g::cube light_gl(win);
 
+    // store the source code of the shaders
     std::string vert_src, frag_src, light_frag_src;
 
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
@@ -216,6 +214,8 @@ void create_materials() noexcept
     if (!success)
         return;
 
+    
+    // index of specific uniform location in the vector for cube obj
     enum class CUBE_OBJ_UNIFORMS {
         PROJ, VIEW, MODEL, NORMAL_MAT,
         MAT_AMBIENT, MAT_DIFFUSE, MAT_SPECULAR, MAT_SHININESS,
@@ -223,12 +223,15 @@ void create_materials() noexcept
         CAM_POS
     };
 
+    // store the uniform locations in a vector for cube obj
     auto cube_uniforms = cube_gl._base_gl._prog.uniform_locations(
         "proj", "view", "model", "normal_mat",
         "material.ambient", "material.diffuse", "material.specular", "material.shininess",
         "light.position", "light.ambient", "light.diffuse", "light.specular",
         "cam_pos"
     );
+
+    // setting said uniforms
 
     cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
     cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
@@ -247,13 +250,20 @@ void create_materials() noexcept
 
     cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
 
+    // index of specific uniform location in the vector for light obj
     enum class LIGHT_OBJ_UNIFORMS { PROJ, VIEW, MODEL, COL };
+    
+    // store the uniform locations in a vector for light obj
     auto light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
+
+    // setting said uniforms
 
     light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
     light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
     light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::MODEL], glm::value_ptr(light_obj._model));
     light_gl._base_gl._prog.set_uniform_vec<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::COL], glm::value_ptr(white));
+
+    // check if shaders are being reloaded
 
     bool reloading_shaders = false;
 
@@ -289,6 +299,7 @@ void create_materials() noexcept
         {
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
             // reads the file right now.
+            // if shader source still has not loaded, force main thread to wait.
             
             mat_list_pair = utils::read_csv_struct_sync<Material>(materials_list_path, true, read_mat_fn);
 
@@ -308,12 +319,18 @@ void create_materials() noexcept
                 {GL_FRAGMENT_SHADER, {light_frag_src}}
             });
 #else
-            // if shader source still has not loaded, force main thread to wait.
+            // files and stuff loaded will be done not in this specific call
+            // but after a few ticks
 
-            auto load_mat_list = std::async([&loaded_mat_list, &materials_list_path, &mat_list_pair, &read_mat_fn](){
+            // load the materials list file
+            load_mat_list = std::async([&loaded_mat_list, &materials_list_path, &mat_list_pair, &read_mat_fn](){
+                loaded_mat_list = false;
                 mat_list_pair = utils::read_csv_struct_sync<Material>(materials_list_path, true, read_mat_fn);
+                loaded_mat_list = true;
+                return mat_list_pair;
             });
 
+            // load the vertex shader source code
             load_vert_src = std::async([&loaded_vert_src, &vert_path, &vert_src](){
                 loaded_vert_src = false;
                 vert_src = utils::read_file_sync(vert_path);
@@ -321,6 +338,7 @@ void create_materials() noexcept
                 return vert_src;
             });
             
+            // load the fragment shader source code for cube obj
             load_frag_src = std::async([&loaded_frag_src, &frag_path, &frag_src](){
                 loaded_frag_src = false;
                 frag_src = utils::read_file_sync(frag_path);
@@ -328,6 +346,7 @@ void create_materials() noexcept
                 return frag_src;
             });
             
+            // load the fragment shader source code for light obj
             load_light_frag_src = std::async([&loaded_light_frag_src, &light_frag_path, &light_frag_src](){
                 loaded_light_frag_src = false;
                 light_frag_src = utils::read_file_sync(light_frag_path);
@@ -335,8 +354,10 @@ void create_materials() noexcept
                 return light_frag_src;
             });
 
+            // check if all files were loaded and read
             if (loaded_mat_list && loaded_vert_src && loaded_frag_src && loaded_light_frag_src)
             {
+                // clear the current shaders and reset them
                 cube_gl._base_gl._prog.flush_shaders();
                 success = cube_gl._base_gl._prog.quick({
                     {GL_VERTEX_SHADER, {vert_src}},
@@ -348,13 +369,22 @@ void create_materials() noexcept
                     {GL_VERTEX_SHADER, {vert_src}},
                     {GL_FRAGMENT_SHADER, {light_frag_src}}
                 });
+
+                // * not throwing error for success here as the error message should be printed and it would defeat
+                // * the point of hot reloading if the program exited on error.
+                // * the error is not massive and can be fixed in general by changing a few lines of code in the external file.
+                // * maybe csv file read error may cause crash have not tested.
             }
 #endif
+            // reset the current cube material
+
             curr_mat = 0;
             cube_mat = mat_list_pair.second[(size_t)std::round(curr_mat)];
 
             // Increases in uniforms cannot be hot reloaded as the new variables need to be initialized in the cpp file
             // Depending on changes GPU mmay optimize out some uniforms but this will NOT cause any errors in setting them
+
+            // get location and set the uniforms again
 
             cube_uniforms = cube_gl._base_gl._prog.uniform_locations(
                 "proj", "view", "model", "normal_mat",
@@ -487,14 +517,19 @@ void create_materials() noexcept
         // * This includes position and cursor position and tex mix
         if (win.get_key(GLFW_KEY_R) == GLFW_PRESS)
         {
+            // reset cursor position
+
             glfwSetCursorPos(win.win(), (double)win.width() / 2.0, (double)win.height() / 2.0);
             first_mouse = true;
+            
+            // reset camera position and fov
             dyn_cam.reset(world_up);
             pers_cam.reset_fov();
 
             cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             
+            // reset cube material
             curr_mat = 0;
             cube_mat = mat_list_pair.second[(size_t)std::round(curr_mat)];
             
@@ -504,12 +539,17 @@ void create_materials() noexcept
             cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
         }
 
+        // clicking T allows shader reloading based on changes in file
+        // T --> texture --> originallly only to change cube texture
         if (win.get_key(GLFW_KEY_T) == GLFW_PRESS && !reloading_shaders){ reloading_shaders = true; }
+
+        // update camera position with information from look around and move
 
         cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
         cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
         light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
 
+        // simulation of rotating cube
         cube_obj._model = glm::rotate(cube_obj._model, glm::radians(45.0f) * cube_rotation_speed * dt, glm::vec3{1, 2, 3});
         cube_obj._normal_mat = glm::mat3(glm::transpose(glm::inverse(cube_obj._model)));
 
