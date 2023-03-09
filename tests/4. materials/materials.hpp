@@ -75,20 +75,6 @@ void create_materials() noexcept
         glm::vec3 diffuse;
         glm::vec3 specular;
         float shininess;
-
-        // Material(const std::tuple<
-        //     std::string,
-        //     double, double, double,
-        //     double, double, double,
-        //     double, double, double,
-        //     double
-        // >& tup) noexcept
-        //     : ambient{std::get<1>(tup), std::get<2>(tup), std::get<3>(tup)},
-        //     diffuse{std::get<4>(tup), std::get<5>(tup), std::get<4>(tup)},
-        //     specular{std::get<7>(tup), std::get<8>(tup), std::get<9>(tup)},
-        //     shininess{(float)(std::get<10>(tup) * 128.0)}
-        // {
-        // }
     };
 
     // TODO: fix error with storing material list?
@@ -102,7 +88,7 @@ void create_materials() noexcept
             .ambient = glm::vec3{std::stof(params[1]), std::stof(params[2]), std::stof(params[3])},
             .diffuse = glm::vec3{std::stof(params[4]), std::stof(params[5]), std::stof(params[6])},
             .specular = glm::vec3{std::stof(params[7]), std::stof(params[8]), std::stof(params[9])},
-            .shininess = std::stof(params[10]),
+            .shininess = std::stof(params[10]) * 128.0f,
         };
     };
 
@@ -115,13 +101,7 @@ void create_materials() noexcept
     auto load_vert_src = utils::read_file_async(vert_path);
     auto load_frag_src = utils::read_file_async(frag_path);
     auto load_light_frag_src = utils::read_file_async(light_frag_path);
-    auto load_mat_list = utils::read_csv_tuple_async<
-        std::string,
-        double, double, double,
-        double, double, double,
-        double, double, double,
-        double
-    >(materials_list_path, true, utils::strto);
+    auto load_mat_list = utils::read_csv_struct_async<Material>(materials_list_path, true, read_mat_fn);
 #endif
 
     ////
@@ -162,26 +142,10 @@ void create_materials() noexcept
     float cube_rotation_speed = 10.0f;
  
 #if !WRAP_G_BACKGROUND_RESOURCE_LOAD
-    // auto mat_list_pair = utils::read_csv_tuple_sync<
-    //     std::string,
-    //     double, double, double,
-    //     double, double, double,
-    //     double, double, double,
-    //     double
-    // >(materials_list_path, true, utils::strto);
     auto mat_list_pair = utils::read_csv_struct_sync<Material>(materials_list_path, true, read_mat_fn);
 #else
     auto mat_list_pair = load_mat_list.get();
 #endif
-
-    std::vector<Material> materials_list;
-
-    // Material cube_mat {
-    //     .ambient = glm::vec3{0.1745f, 0.01175f, 0.01175f},
-    //     .diffuse = glm::vec3{0.61424f, 0.04136f, 0.04136f},
-    //     .specular = glm::vec3{0.727811f, 0.626959f, 0.626959f},
-    //     .shininess = 128.0f * 0.6f,
-    // };
 
     double curr_mat = 0;
     Material cube_mat(mat_list_pair.second[(size_t)std::round(curr_mat)]);
@@ -346,14 +310,8 @@ void create_materials() noexcept
 #else
             // if shader source still has not loaded, force main thread to wait.
 
-            auto load_mat_list = std::async([&loaded_mat_list, &materials_list_path, &mat_list_pair](){
-                mat_list_pair = utils::read_csv_tuple_sync<
-                    std::string,
-                    double, double, double,
-                    double, double, double,
-                    double, double, double,
-                    double
-                >(materials_list_path, true, utils::strto);
+            auto load_mat_list = std::async([&loaded_mat_list, &materials_list_path, &mat_list_pair, &read_mat_fn](){
+                mat_list_pair = utils::read_csv_struct_sync<Material>(materials_list_path, true, read_mat_fn);
             });
 
             load_vert_src = std::async([&loaded_vert_src, &vert_path, &vert_src](){
@@ -393,7 +351,7 @@ void create_materials() noexcept
             }
 #endif
             curr_mat = 0;
-            cube_mat = Material(mat_list_pair.second[(size_t)std::round(curr_mat)]);
+            cube_mat = mat_list_pair.second[(size_t)std::round(curr_mat)];
 
             // Increases in uniforms cannot be hot reloaded as the new variables need to be initialized in the cpp file
             // Depending on changes GPU mmay optimize out some uniforms but this will NOT cause any errors in setting them
@@ -517,7 +475,7 @@ void create_materials() noexcept
             curr_mat += (win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * mat_change_sens * dt;
             curr_mat = glm::clamp(curr_mat, 0.0, (double)mat_list_pair.second.size() - 1.0);
 
-            cube_mat = Material(mat_list_pair.second[(size_t)std::round(curr_mat)]);
+            cube_mat = mat_list_pair.second[(size_t)std::round(curr_mat)];
 
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_AMBIENT], glm::value_ptr(cube_mat.ambient));
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], glm::value_ptr(cube_mat.diffuse));
@@ -538,7 +496,7 @@ void create_materials() noexcept
             light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
             
             curr_mat = 0;
-            cube_mat = Material(mat_list_pair.second[(size_t)std::round(curr_mat)]);
+            cube_mat = mat_list_pair.second[(size_t)std::round(curr_mat)];
             
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_AMBIENT], glm::value_ptr(cube_mat.ambient));
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], glm::value_ptr(cube_mat.diffuse));
