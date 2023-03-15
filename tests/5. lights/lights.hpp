@@ -157,8 +157,8 @@ void create_lights() noexcept
     };
 
     Light light_mat {
-        .ambient = glm::vec3{1.0f},
-        .diffuse = glm::vec3{1.0f},
+        .ambient = glm::vec3{0.2f},
+        .diffuse = glm::vec3{0.5f},
         .specular = glm::vec3{1.0f}
     };
 
@@ -175,6 +175,16 @@ void create_lights() noexcept
 
     wrap_g::texture diff_map(win.create_texture(GL_TEXTURE_2D)),
                     spec_map(win.create_texture(GL_TEXTURE_2D));
+
+    diff_map.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    diff_map.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    diff_map.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    diff_map.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    spec_map.set_param(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    spec_map.set_param(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    spec_map.set_param(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    spec_map.set_param(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     diff_map.bind_unit(cube_mat.diffuse);
     spec_map.bind_unit(cube_mat.specular);
@@ -204,8 +214,25 @@ void create_lights() noexcept
 
     if (success)
     {
-        diff_map.define_texture2d(1, GL_RGBA4, img_loader.width(), img_loader.height());
-        diff_map.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader.data());
+        GLenum iformat, format;
+        if (img_loader.nr_channels() == 1) 
+        {
+            iformat = GL_R;
+            format = GL_RED;
+        }
+        else if (img_loader.nr_channels() == 3)
+        {
+            iformat = GL_RGB4;
+            format = GL_RGB;
+        }
+        else if (img_loader.nr_channels() == 4)
+        {
+            iformat = GL_RGBA4;
+            format = GL_RGBA;
+        }
+
+        diff_map.define_texture2d(1, iformat, img_loader.width(), img_loader.height());
+        diff_map.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), format, GL_UNSIGNED_BYTE, img_loader.data());
         diff_map.gen_mipmap();
     }
     else
@@ -217,8 +244,25 @@ void create_lights() noexcept
     
     if (success)
     {
-        spec_map.define_texture2d(1, GL_RGBA4, img_loader.width(), img_loader.height());
-        spec_map.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader.data());
+        GLenum iformat, format;
+        if (img_loader.nr_channels() == 1) 
+        {
+            iformat = GL_R;
+            format = GL_RED;
+        }
+        else if (img_loader.nr_channels() == 3)
+        {
+            iformat = GL_RGB4;
+            format = GL_RGB;
+        }
+        else if (img_loader.nr_channels() == 4)
+        {
+            iformat = GL_RGBA4;
+            format = GL_RGBA;
+        }
+
+        spec_map.define_texture2d(1, iformat, img_loader.width(), img_loader.height());
+        spec_map.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), format, GL_UNSIGNED_BYTE, img_loader.data());
         spec_map.gen_mipmap();
     }
     else
@@ -247,8 +291,25 @@ void create_lights() noexcept
 
     if (success)
     {
-        diff_map.define_texture2d(1, GL_RGBA4, diff_map_loader.width(), diff_map_loader.height());
-        diff_map.sub_image2d(0, 0, 0, diff_map_loader.width(), diff_map_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, diff_map_loader.data());
+        GLenum iformat, format;
+        if (diff_map_loader.nr_channels() == 1) 
+        {
+            iformat = GL_R;
+            format = GL_RED;
+        }
+        else if (diff_map_loader.nr_channels() == 3)
+        {
+            iformat = GL_RGB4;
+            format = GL_RGB;
+        }
+        else if (diff_map_loader.nr_channels() == 4)
+        {
+            iformat = GL_RGBA4;
+            format = GL_RGBA;
+        }
+
+        diff_map.define_texture2d(1, iformat, diff_map_loader.width(), diff_map_loader.height());
+        diff_map.sub_image2d(0, 0, 0, diff_map_loader.width(), diff_map_loader.height(), format, GL_UNSIGNED_BYTE, diff_map_loader.data());
         diff_map.gen_mipmap();
     }
     else
@@ -260,8 +321,25 @@ void create_lights() noexcept
     
     if (success)
     {
-        spec_map.define_texture2d(1, GL_RGBA4, spec_map_loader.width(), spec_map_loader.height());
-        spec_map.sub_image2d(0, 0, 0, spec_map_loader.width(), spec_map_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, spec_map_loader.data());
+        GLenum iformat, format;
+        if (spec_map_loader.nr_channels() == 1) 
+        {
+            iformat = GL_R;
+            format = GL_RED;
+        }
+        else if (spec_map_loader.nr_channels() == 3)
+        {
+            iformat = GL_RGB4;
+            format = GL_RGB;
+        }
+        else if (spec_map_loader.nr_channels() == 4)
+        {
+            iformat = GL_RGBA4;
+            format = GL_RGBA;
+        }
+
+        spec_map.define_texture2d(1, iformat, spec_map_loader.width(), spec_map_loader.height());
+        spec_map.sub_image2d(0, 0, 0, spec_map_loader.width(), spec_map_loader.height(), format, GL_UNSIGNED_BYTE, spec_map_loader.data());
         spec_map.gen_mipmap();
     }
     else
