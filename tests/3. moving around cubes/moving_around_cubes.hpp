@@ -52,7 +52,6 @@ void create_moving_around_cubes() noexcept
     win.set_buffer_swap_interval(0);
     
     // hide the cursor
-    // glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     win.set_input_mode(GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 #if WRAP_G_DEBUG
