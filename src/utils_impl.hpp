@@ -39,19 +39,14 @@ namespace utils
     stb_image::stb_image() noexcept
     {
     }
-
-    stb_image::stb_image(const char *path, bool vertical_flip) noexcept
-    {
-        load_file(path, vertical_flip);
-    }
-
+    
     stb_image::~stb_image() noexcept
     {
         if (m_data != NULL)
             stbi_image_free(m_data);
     }
 
-    bool stb_image::load_file(const char *path, bool vertical_flip) noexcept
+    [[nodiscard]] bool stb_image::load_file(const char *path, bool vertical_flip) noexcept
     {
         stbi_set_flip_vertically_on_load(vertical_flip);
         m_data = stbi_load(path, &m_width, &m_height, &m_nr_channels, 0);
@@ -66,7 +61,7 @@ namespace utils
         return true;
     }
 
-    std::future<bool> stb_image::load_file_async(const char *path, bool vertical_flip) noexcept
+    [[nodiscard]] std::future<bool> stb_image::load_file_async(const char *path, bool vertical_flip) noexcept
     {
         return std::async(std::launch::async, [
             path, vertical_flip,

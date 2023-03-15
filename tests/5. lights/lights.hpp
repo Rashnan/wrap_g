@@ -66,6 +66,9 @@ void create_lights() noexcept
     ////
     // Resource locations
 
+    constexpr const char *diff_map_path = "./tests/res/images/container2.png";
+    constexpr const char *spec_map_path = "./tests/res/images/container2_specular.png";
+
     constexpr const char *vert_path = "./tests/5. lights/vert.glsl";
     constexpr const char *frag_path = "./tests/5. lights/frag.glsl";
     constexpr const char *light_frag_path = "./tests/5. lights/light_frag.glsl";
@@ -78,9 +81,16 @@ void create_lights() noexcept
 
     // call blocking functions such as files/img loading in seperate thread.
 
+    utils::stb_image diff_map_loader, spec_map_loader;
+
+    auto load_diff_map = diff_map_loader.load_file_async(diff_map_path);
+    auto load_spec_map = spec_map_loader.load_file_async(spec_map_path);
+
     auto load_vert_src = utils::read_file_async(vert_path);
     auto load_frag_src = utils::read_file_async(frag_path);
     auto load_light_frag_src = utils::read_file_async(light_frag_path);
+#else
+    utils::stb_image img_loader;
 #endif
 
     ////
@@ -163,6 +173,12 @@ void create_lights() noexcept
     wrap_g::cube cube_gl(win);
     wrap_g::cube light_gl(win);
 
+    wrap_g::texture diff_map(win.create_texture(GL_TEXTURE_2D)),
+                    spec_map(win.create_texture(GL_TEXTURE_2D));
+
+    diff_map.bind_unit(cube_mat.diffuse);
+    spec_map.bind_unit(cube_mat.specular);
+
     // store the source code of the shaders
     std::string vert_src, frag_src, light_frag_src;
 
@@ -180,6 +196,35 @@ void create_lights() noexcept
         {GL_VERTEX_SHADER, {vert_src}},
         {GL_FRAGMENT_SHADER, {light_frag_src}}
     });
+
+    if (!success)
+        return;
+
+    success = img_loader.load_file(diff_map_path);
+
+    if (success)
+    {
+        diff_map.define_texture2d(1, GL_RGBA4, img_loader.width(), img_loader.height());
+        diff_map.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader.data());
+        diff_map.gen_mipmap();
+    }
+    else
+    {
+        std::cout << "[main] Error: Failed to load diffuse map from " << diff_map_path << "\n";
+    }
+
+    success = img_loader.load_file(spec_map_path);
+    
+    if (success)
+    {
+        spec_map.define_texture2d(1, GL_RGBA4, img_loader.width(), img_loader.height());
+        spec_map.sub_image2d(0, 0, 0, img_loader.width(), img_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, img_loader.data());
+        spec_map.gen_mipmap();
+    }
+    else
+    {
+        std::cout << "[main] Error: Failed to load specular map from " << spec_map_path << "\n";
+    }
 #else
     // if shader source still has not loaded, force main thread to wait.
     vert_src = load_vert_src.get();
@@ -194,10 +239,36 @@ void create_lights() noexcept
         {GL_VERTEX_SHADER, {vert_src}},
         {GL_FRAGMENT_SHADER, {light_frag_src}}
     });
-#endif
 
     if (!success)
         return;
+
+    success = load_diff_map.get();
+
+    if (success)
+    {
+        diff_map.define_texture2d(1, GL_RGBA4, diff_map_loader.width(), diff_map_loader.height());
+        diff_map.sub_image2d(0, 0, 0, diff_map_loader.width(), diff_map_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, diff_map_loader.data());
+        diff_map.gen_mipmap();
+    }
+    else
+    {
+        std::cout << "[main] Error: Failed to load diffuse map from " << diff_map_path << "\n";
+    }
+
+    success = load_spec_map.get();
+    
+    if (success)
+    {
+        spec_map.define_texture2d(1, GL_RGBA4, spec_map_loader.width(), spec_map_loader.height());
+        spec_map.sub_image2d(0, 0, 0, spec_map_loader.width(), spec_map_loader.height(), GL_RGBA, GL_UNSIGNED_BYTE, spec_map_loader.data());
+        spec_map.gen_mipmap();
+    }
+    else
+    {
+        std::cout << "[main] Error: Failed to load specular map from " << spec_map_path << "\n";
+    }
+#endif
         
     // index of specific uniform location in the vector for cube obj
     enum class CUBE_OBJ_UNIFORMS {
@@ -252,7 +323,6 @@ void create_lights() noexcept
     bool reloading_shaders = false;
 
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
-    bool loaded_mat_list = false;
     bool loaded_vert_src = false;
     bool loaded_frag_src = false;
     bool loaded_light_frag_src = false;
@@ -270,6 +340,268 @@ void create_lights() noexcept
 #endif
     float dt = 0.01;
     
+    while (!win.get_should_close())
+    {
+        ////
+        // event handling
+        
+        // get events such as mouse input
+        // checks every time for event
+        glfwPollEvents();
+
+        if (reloading_shaders)
+        {
+#if !WRAP_G_BACKGROUND_RESOURCE_LOAD
+            // reads the file right now.
+            // if shader source still has not loaded, force main thread to wait.
+
+            vert_src = utils::read_file_sync(vert_path);
+            frag_src = utils::read_file_sync(frag_path);
+            light_frag_src = utils::read_file_sync(light_frag_path);
+            
+            cube_gl._base_gl._prog.flush_shaders();
+            success = cube_gl._base_gl._prog.quick({
+                {GL_VERTEX_SHADER, {vert_src}},
+                {GL_FRAGMENT_SHADER, {frag_src}}
+            });
+
+            light_gl._base_gl._prog.flush_shaders();
+            success = success && light_gl._base_gl._prog.quick({
+                {GL_VERTEX_SHADER, {vert_src}},
+                {GL_FRAGMENT_SHADER, {light_frag_src}}
+            });
+#else
+            // files and stuff loaded will be done not in this specific call
+            // but after a few ticks
+
+            // load the vertex shader source code
+            load_vert_src = std::async([&loaded_vert_src, &vert_path, &vert_src](){
+                loaded_vert_src = false;
+                vert_src = utils::read_file_sync(vert_path);
+                loaded_vert_src = true;
+                return vert_src;
+            });
+            
+            // load the fragment shader source code for cube obj
+            load_frag_src = std::async([&loaded_frag_src, &frag_path, &frag_src](){
+                loaded_frag_src = false;
+                frag_src = utils::read_file_sync(frag_path);
+                loaded_frag_src = true;
+                return frag_src;
+            });
+            
+            // load the fragment shader source code for light obj
+            load_light_frag_src = std::async([&loaded_light_frag_src, &light_frag_path, &light_frag_src](){
+                loaded_light_frag_src = false;
+                light_frag_src = utils::read_file_sync(light_frag_path);
+                loaded_light_frag_src = true;
+                return light_frag_src;
+            });
+
+            // check if all files were loaded and read
+            if (loaded_vert_src && loaded_frag_src && loaded_light_frag_src)
+            {
+                // clear the current shaders and reset them
+                cube_gl._base_gl._prog.flush_shaders();
+                success = cube_gl._base_gl._prog.quick({
+                    {GL_VERTEX_SHADER, {vert_src}},
+                    {GL_FRAGMENT_SHADER, {frag_src}}
+                });
+
+                light_gl._base_gl._prog.flush_shaders();
+                success = success && light_gl._base_gl._prog.quick({
+                    {GL_VERTEX_SHADER, {vert_src}},
+                    {GL_FRAGMENT_SHADER, {light_frag_src}}
+                });
+
+                // * not throwing error for success here as the error message should be printed and it would defeat
+                // * the point of hot reloading if the program exited on error.
+                // * the error is not massive and can be fixed in general by changing a few lines of code in the external file.
+                // * maybe csv file read error may cause crash have not tested.
+            }
+#endif
+            // Increases in uniforms cannot be hot reloaded as the new variables need to be initialized in the cpp file
+            // Depending on changes GPU mmay optimize out some uniforms but this will NOT cause any errors in setting them
+
+            // get location and set the uniforms again
+
+            cube_uniforms = cube_gl._base_gl._prog.uniform_locations(
+                "proj", "view", "model", "normal_mat",
+                "material.ambient", "material.diffuse", "material.specular", "material.shininess",
+                "light.position", "light.ambient", "light.diffuse", "light.specular",
+                "cam_pos"
+            );
+
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
+            cube_gl._base_gl._prog.set_uniform_mat<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::NORMAL_MAT], glm::value_ptr(cube_obj._normal_mat));
+
+            // diffuse and specular hold ints to store the texture unit of their respective maps
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], cube_mat.diffuse);
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], cube_mat.specular);
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
+
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POSITION], glm::value_ptr(light_pos));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_AMBIENT], glm::value_ptr(light_mat.ambient));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_DIFFUSE], glm::value_ptr(light_mat.diffuse));
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_SPECULAR], glm::value_ptr(light_mat.specular));
+
+            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
+
+            light_uniforms = light_gl._base_gl._prog.uniform_locations("proj", "view", "model", "col");
+
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::MODEL], glm::value_ptr(light_obj._model));
+            light_gl._base_gl._prog.set_uniform_vec<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::COL], glm::value_ptr(white));
+
+            reloading_shaders = false;
+        }
+
+        // look direction
+        // rotate camera along with mouse rotation
+        // but only if user is pressing left click
+        if (win.get_mouse_button(GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+        {
+            auto cursor = win.get_cursor_position();
+            
+            if (first_mouse)
+            {
+                // basically ignore first mouse
+                first_mouse = false;
+                // update last cursor position
+                last_cursor = glm::vec2{cursor.first, cursor.second};
+            }
+            else
+            {
+                // calculate how far the mouse is from last position
+                glm::vec2 cursor_offset = glm::vec2{cursor.first, cursor.second} - last_cursor;
+                // update last cursor position
+                last_cursor = glm::vec2{cursor.first, cursor.second};
+                // y axis is flipped as y is measured from top to bottom
+                // top of screen is y=0 when we get the cursor position
+                cursor_offset *= glm::vec2{1, -1} * look_sens * dt;
+                dyn_cam.rotate(cursor_offset, world_up);
+            }
+        }
+
+        // movement
+
+        // move left
+        if (win.get_key(GLFW_KEY_A) == GLFW_PRESS)
+        {
+            auto&& offset = - dyn_cam.m_right * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+
+        // move right
+        if (win.get_key(GLFW_KEY_D) == GLFW_PRESS)
+        {
+            auto&& offset = dyn_cam.m_right * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+        
+        // move forward
+        if (win.get_key(GLFW_KEY_W) == GLFW_PRESS)
+        {
+            auto&& offset = dyn_cam.m_front * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+
+        // move backward
+        if (win.get_key(GLFW_KEY_S) == GLFW_PRESS)
+        {
+            auto&& offset = - dyn_cam.m_front * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+        
+        // move upwards
+        if (win.get_key(GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            auto&& offset = dyn_cam.m_up * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+
+        // move downwards
+        if (win.get_key(GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            auto&& offset = - dyn_cam.m_up * move_sens * dt;
+            dyn_cam.move(offset);
+        }
+        
+        // zoom event
+        if (win.get_key(GLFW_KEY_Z) == GLFW_PRESS)
+        {
+            pers_cam.adjust_fov(-(win.get_key(GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ? -1.0 : 1.0) * zoom_sens * dt);
+
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+        }
+
+        // * Reset all variables to their original values
+        // * This includes position and cursor position and tex mix
+        if (win.get_key(GLFW_KEY_R) == GLFW_PRESS)
+        {
+            // reset cursor position
+
+            glfwSetCursorPos(win.win(), (double)win.width() / 2.0, (double)win.height() / 2.0);
+            first_mouse = true;
+            
+            // reset camera position and fov
+            dyn_cam.reset(world_up);
+            pers_cam.reset_fov();
+
+            cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::PROJ], glm::value_ptr(pers_cam.m_proj));
+            
+            // diffuse and specular hold ints to store the texture unit of their respective maps
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_DIFFUSE], cube_mat.diffuse);
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], cube_mat.specular);
+            cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
+        }
+
+        // clicking T allows shader reloading based on changes in file
+        // T --> texture --> originallly only to change cube texture
+        if (win.get_key(GLFW_KEY_T) == GLFW_PRESS && !reloading_shaders){ reloading_shaders = true; }
+
+        // update camera position with information from look around and move
+
+        cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::CAM_POS], glm::value_ptr(dyn_cam.m_pos));
+        cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+        light_gl._base_gl._prog.set_uniform_mat<4>(light_uniforms[(int)LIGHT_OBJ_UNIFORMS::VIEW], glm::value_ptr(dyn_cam.m_view));
+
+        // simulation of rotating cube
+        cube_obj._model = glm::rotate(cube_obj._model, glm::radians(45.0f) * cube_rotation_speed * dt, glm::vec3{1, 2, 3});
+        cube_obj._normal_mat = glm::mat3(glm::transpose(glm::inverse(cube_obj._model)));
+
+        cube_gl._base_gl._prog.set_uniform_mat<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MODEL], glm::value_ptr(cube_obj._model));
+        cube_gl._base_gl._prog.set_uniform_mat<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::NORMAL_MAT], glm::value_ptr(cube_obj._normal_mat));
+        
+        watch.start();
+
+        ////
+        // rendering
+
+        // set the color that will be used when glClear is called on the color buffer bit
+        glClearColor(blue.r, blue.g, blue.b, blue.a);
+
+        // use this to reset the color and reset the depth buffer bit
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        cube_gl.render();
+        light_gl.render();
+
+        // swap the buffers to show the newly drawn frame
+        win.swap_buffers();
+
+        dt = watch.stop();
+#if WRAP_G_DEBUG
+        tracker.track_frame(dt);
+#endif
+        dt = glm::clamp(dt, 0.0001f, 0.01f);
+    }
+
 #if WRAP_G_DEBUG
     tracker.finish_tracking();
     tracker.save(stats_loc);

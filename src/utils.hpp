@@ -90,15 +90,6 @@ namespace utils
         stb_image() noexcept;
 
         /**
-         * @brief Construct a new stb image object. Also calls load_file using
-         * the path and the vertical_flip.
-         *
-         * @param path The path to the image to be loaded.
-         * @param vertical_flip Whether the image should be flipped vertically.
-         */
-        stb_image(const char *path, bool vertical_flip = false) noexcept;
-
-        /**
          * @brief Destroy the stb image object.
          *
          */
@@ -117,7 +108,7 @@ namespace utils
          * @return true Loading successful.
          * @return false Loading failed.
          */
-        bool load_file(const char *path, bool vertical_flip = false) noexcept;
+        [[nodiscard]] bool load_file(const char *path, bool vertical_flip = false) noexcept;
 
         /**
          * @brief Load an image async.
