@@ -530,6 +530,7 @@ void create_moving_around_cubes() noexcept
 #endif
         dt = glm::clamp(dt, 0.0001f, 0.01f);
     }
+    
 #if WRAP_G_DEBUG
     tracker.finish_tracking();
     tracker.save(stats_loc);

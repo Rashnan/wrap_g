@@ -327,6 +327,7 @@ void create_textured_rect() noexcept
         tracker.track_frame(watch.stop());
 #endif
     }
+    
 #if WRAP_G_DEBUG
     tracker.finish_tracking();
     tracker.save(stats_loc);

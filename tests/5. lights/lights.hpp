@@ -269,6 +269,11 @@ void create_lights() noexcept
     tracker.start_tracking();
 #endif
     float dt = 0.01;
+    
+#if WRAP_G_DEBUG
+    tracker.finish_tracking();
+    tracker.save(stats_loc);
+#endif
 }
 
 }
