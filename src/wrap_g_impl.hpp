@@ -438,6 +438,20 @@ namespace wrap_g
         glfwSetMouseButtonCallback(m_win, fn);
     }
 
+    void window::set_input_mode(int mode, int value) noexcept
+    {
+        // sets the input mode for the windwo must be one of
+        // GLFW_CURSOR, GLFW_STICKY_KEYS, GLFW_STICKY_MOUSE_BUTTONS, GLFW_LOCK_KEY_MODS or GLFW_RAW_MOUSE_MOTION
+        // GLFW_CURSOR --> GLFW_CURSOR_NORMAL, GLFW_CURSOR_HIDDEN, GLFW_CURSOR_DISABLED
+        // disabled removes cursor completely while hidden only hides it when it is in the 
+        // current context area
+        // GLFW_STICKY_KEYS / GLFW_STICKY_MOUSE_BUTTONS --> GL_TRUE / GL_FALSE
+        // the respective get key or get mouse button will from then on always return GLFW_PRESS
+        // even before the key is released
+        // TODO: fill in info for remaining
+        glfwSetInputMode(m_win, mode, value);
+    }
+
     void window::set_should_close(bool close) noexcept
     {
         // set the window should close parameter

@@ -54,6 +54,10 @@ void create_materials() noexcept
     // *not sure if works
     win.set_buffer_swap_interval(0);
 
+    // hide the cursor
+    // glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    win.set_input_mode(GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
 #if WRAP_G_DEBUG
     std::cout << "[main] Debug: Standard stuff time elapsed: " << watch.stop() << " ms \n";
     watch.start();
@@ -163,9 +167,6 @@ void create_materials() noexcept
         .diffuse = glm::vec3{1.0f},
         .specular = glm::vec3{1.0f}
     };
-    
-    // hide the cursor
-    glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // gives a glm::vec4 containing the rgba color values
     constexpr auto blue = utils::hex("#111b24");

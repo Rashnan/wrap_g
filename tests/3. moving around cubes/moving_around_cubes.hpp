@@ -50,6 +50,10 @@ void create_moving_around_cubes() noexcept
     // *supposed to set buffer swap rate to sync with monitor.
     // *not sure if works
     win.set_buffer_swap_interval(0);
+    
+    // hide the cursor
+    // glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    win.set_input_mode(GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 #if WRAP_G_DEBUG
     std::cout << "[main] Debug: Standard stuff time elapsed: " << watch.stop() << " ms \n";
@@ -163,9 +167,6 @@ void create_moving_around_cubes() noexcept
     // and the furthest being 10.0f from the camera
     proj = glm::perspective(glm::radians(fov), (float)win.width()/win.height(), 0.1f, 100.0f);
     view = glm::lookAt(camera_start_pos, camera_start_looking_at, world_up);
-
-    // hide the cursor
-    glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // opengl render code
 
