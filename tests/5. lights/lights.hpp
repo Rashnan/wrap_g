@@ -12,9 +12,11 @@ namespace wrap_tests
 
 void create_lights() noexcept
 {
-#if WRAP_G_DEBUG
     // time each process
+    // outside as dt per frame is calculated using this
     utils::timer watch;
+
+#if WRAP_G_DEBUG
     watch.start();
 #endif
 
@@ -248,13 +250,25 @@ void create_lights() noexcept
     // check if shaders are being reloaded
 
     bool reloading_shaders = false;
-    
+
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
     bool loaded_mat_list = false;
     bool loaded_vert_src = false;
     bool loaded_frag_src = false;
     bool loaded_light_frag_src = false;
 #endif
+
+    glEnable(GL_DEPTH_TEST);
+
+#if WRAP_G_DEBUG
+    std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
+#endif
+
+#if WRAP_G_DEBUG
+    utils::metrics tracker;
+    tracker.start_tracking();
+#endif
+    float dt = 0.01;
 }
 
 }

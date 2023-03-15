@@ -11,9 +11,11 @@ namespace wrap_tests
 
 void create_moving_around_cubes() noexcept
 {
-#if WRAP_G_DEBUG
     // time each process
+    // outside as dt per frame is calculated using this
     utils::timer watch;
+
+#if WRAP_G_DEBUG
     watch.start();
 #endif
 
