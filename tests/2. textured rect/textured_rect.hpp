@@ -219,7 +219,7 @@ void create_textured_rect() noexcept
     load_img_1.wait();
 #else
     // load image now
-    img_loader_1.load_file(img_path_1);    
+    img_loader_1.load_file(img_path_1);
 #endif
 
     if (img_loader_1.data() == nullptr) {

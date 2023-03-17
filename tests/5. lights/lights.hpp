@@ -101,6 +101,8 @@ void create_lights() noexcept
 
     glm::vec3 cam_start_pos {-1.0f, 0.0f, 1.0f};
     // * w-dim is used to indicate whether light is directional
+    // * 0 is direction
+    // * 1 is position
     glm::vec4 light_pos {2.0f, 2.0f, -3.0f, 1.0f};
     glm::vec3 cube_pos {0.0f, 0.0f, -2.0f};
 
@@ -570,7 +572,6 @@ void create_lights() noexcept
                 if (len > cursor_offset_min && len < cursor_offset_max) {
                     // update last cursor position
                     last_cursor = glm::vec2{cursor.first, cursor.second};
-                    utils::print_vecs<2>(glm::value_ptr(last_cursor));
                     // y axis is flipped as y is measured from top to bottom
                     // top of screen is y=0 when we get the cursor position
                     cursor_offset *= glm::vec2{1, -1} * look_sens * dt;
