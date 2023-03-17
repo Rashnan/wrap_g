@@ -282,13 +282,13 @@ void create_moving_around_cubes() noexcept
     // Resource Fetching Threads Done
 
     // wait for thread to load img just in case it is not done
-    load_img_1.wait();
+    success = load_img_1.get();
 #else
     // load image now
-    img_loader_1.load_file(img_path_1);    
+    success = img_loader_1.load_file(img_path_1);    
 #endif
 
-    if (img_loader_1.data() == nullptr) {
+    if (!success) {
         std::cout << "[main] Error: Failed to load image from " << img_path_1 << "\n";
     }
     else {
@@ -313,13 +313,13 @@ void create_moving_around_cubes() noexcept
 
 #if WRAP_G_BACKGROUND_RESOURCE_LOAD
     // wait for thread to load img just in case it is not done
-    load_img_2.wait();
+    success = load_img_2.get();
 #else
     // load image now
-    img_loader_2.load_file(img_path_2, true);
+    success = img_loader_2.load_file(img_path_2, true);
 #endif
 
-    if (img_loader_2.data() == nullptr) {
+    if (!success) {
         std::cout << "[main] Error: Failed to load image from " << img_path_2 << "\n";
     }
     else {
