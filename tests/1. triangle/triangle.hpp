@@ -172,7 +172,7 @@ void create_triangle() noexcept
     {
         // get events such as mouse input
         // checks every time for event
-        glfwPollEvents();
+        win.poll_events();
 
 #if WRAP_G_DEBUG
         watch.start();

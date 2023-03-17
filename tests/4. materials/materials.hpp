@@ -295,7 +295,7 @@ void create_materials() noexcept
         
         // get events such as mouse input
         // checks every time for event
-        glfwPollEvents();
+        win.poll_events();
 
         if (reloading_shaders)
         {
@@ -521,7 +521,7 @@ void create_materials() noexcept
         {
             // reset cursor position
 
-            glfwSetCursorPos(win.win(), (double)win.width() / 2.0, (double)win.height() / 2.0);
+            win.set_cursor_pos((double)win.width() / 2.0, (double)win.height() / 2.0);
             first_mouse = true;
             
             // reset camera position and fov

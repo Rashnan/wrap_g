@@ -330,6 +330,14 @@ namespace wrap_g
         void set_input_mode(int mode, int value) noexcept;
 
         /**
+         * @brief Set the cursor position in the window
+         * 
+         * @param x The x value. X is 0 at left of window and win.width() at right
+         * @param y The y value. Y is 0 at top of window and win.height() at bottom
+         */
+        void set_cursor_pos(double x, double y) noexcept;
+
+        /**
          * @brief Set whether the window should close.
          *
          * @param close Whether the window should close.
@@ -355,6 +363,26 @@ namespace wrap_g
          * time has passed. Set to 0 to enable vsync.
          */
         void set_buffer_swap_interval(int interval) noexcept;
+
+        /**
+         * @brief Poll all the current events. If no events, just continue.
+         * 
+         */
+        void poll_events() noexcept;
+
+        /**
+         * @brief Wait for an event. If no events, sleeps the current thread until an event is present.
+         * 
+         */
+        void wait_events() noexcept;
+        
+        /**
+         * @brief Wait for an event. If no events, sleeps the current thread until an event is present.
+         * Or until the timeout value is reached
+         * 
+         * @param timeout The max amount of time in seconds to wait for an event.
+         */
+        void wait_events_timeout(double timeout) noexcept;
 
         /**
          *

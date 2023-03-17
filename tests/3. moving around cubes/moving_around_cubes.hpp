@@ -360,7 +360,7 @@ void create_moving_around_cubes() noexcept
         
         // get events such as mouse input
         // checks every time for event
-        glfwPollEvents();
+        win.poll_events();
 
         // look direction
         // rotate camera along with mouse rotation
@@ -477,7 +477,7 @@ void create_moving_around_cubes() noexcept
         // * This includes position and cursor position and tex mix
         if (win.get_key(GLFW_KEY_R) == GLFW_PRESS)
         {
-            glfwSetCursorPos(win.win(), (double)win.width() / 2.0, (double)win.height() / 2.0);
+            win.set_cursor_pos((double)win.width() / 2.0, (double)win.height() / 2.0);
             first_mouse = true;
             camera_pos = camera_start_pos;
             camera_dir = camera_start_looking_at - camera_start_pos;

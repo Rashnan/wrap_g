@@ -13,7 +13,7 @@ struct Material {
 };
 
 struct Light {
-    vec3 position;
+    vec4 position;
 
     vec3 ambient;
     vec3 diffuse;
@@ -29,7 +29,8 @@ void main()
     vec3 ambient = light.ambient * vec3(texture(material.diffuse, tex_coord));
 
     vec3 norm = normalize(normals);
-    vec3 light_dir = normalize(light.position - frag_pos);
+    vec3 light_dir = (1.0 - step(1.0, light.position.w)) * normalize(light.position.xyz - frag_pos)
+                    + step(1.0, light.position.w) * normalize(- light.position.xyz);
 
     vec3 diffuse = max(dot(norm, light_dir), 0.0) * light.diffuse * vec3(texture(material.diffuse, tex_coord));
 

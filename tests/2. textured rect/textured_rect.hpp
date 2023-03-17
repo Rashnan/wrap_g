@@ -287,7 +287,7 @@ void create_textured_rect() noexcept
     {
         // get events such as mouse input
         // checks every time for event
-        glfwPollEvents();
+        win.poll_events();
 
         // press S to make the second image more visible
         // press S with control to make first image more visible

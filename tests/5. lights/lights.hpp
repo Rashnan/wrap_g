@@ -55,7 +55,6 @@ void create_lights() noexcept
     win.set_buffer_swap_interval(0);
 
     // hide the cursor
-    // glfwSetInputMode(win.win(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     win.set_input_mode(GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 #if WRAP_G_DEBUG
@@ -101,7 +100,8 @@ void create_lights() noexcept
     glm::vec3 world_up {0.0f, 1.0f, 0.0f};
 
     glm::vec3 cam_start_pos {-1.0f, 0.0f, 1.0f};
-    glm::vec3 light_pos {2.0f, 2.0f, -3.0f};
+    // * w-dim is used to indicate whether light is directional
+    glm::vec4 light_pos {2.0f, 2.0f, -3.0f, 1.0f};
     glm::vec3 cube_pos {0.0f, 0.0f, -2.0f};
 
     // wrap_g math stuff
@@ -112,7 +112,7 @@ void create_lights() noexcept
     wrap_g::object light_obj;
 
     cube_obj._model = glm::translate(cube_obj._model, cube_pos);
-    light_obj._model = glm::translate(light_obj._model, light_pos);
+    light_obj._model = glm::translate(light_obj._model, glm::vec3(light_pos));
     light_obj._model = glm::scale(light_obj._model, glm::vec3{0.25f});
 
     cube_obj._normal_mat = glm::mat3(glm::transpose(glm::inverse(cube_obj._model)));
@@ -123,7 +123,6 @@ void create_lights() noexcept
     // first mouse needed for mouse rotation
     bool first_mouse = false;
 
-    // float last_x = win.width() / 2.0f, last_y = win.height() / 2.0f;
     glm::vec2 last_cursor = glm::vec2{win.width(), win.height()} / 2.0f;
 
     // the various sensitivities
@@ -376,7 +375,7 @@ void create_lights() noexcept
     cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], cube_mat.specular);
     cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
 
-    cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POSITION], glm::value_ptr(light_pos));
+    cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POSITION], glm::value_ptr(light_pos));
     cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_AMBIENT], glm::value_ptr(light_mat.ambient));
     cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_DIFFUSE], glm::value_ptr(light_mat.diffuse));
     cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_SPECULAR], glm::value_ptr(light_mat.specular));
@@ -425,7 +424,7 @@ void create_lights() noexcept
         
         // get events such as mouse input
         // checks every time for event
-        glfwPollEvents();
+        win.poll_events();
 
         if (reloading_shaders)
         {
@@ -505,7 +504,7 @@ void create_lights() noexcept
 
             cube_uniforms = cube_gl._base_gl._prog.uniform_locations(
                 "proj", "view", "model", "normal_mat",
-                "material.ambient", "material.diffuse", "material.specular", "material.shininess",
+                "material.diffuse", "material.specular", "material.shininess",
                 "light.position", "light.ambient", "light.diffuse", "light.specular",
                 "cam_pos"
             );
@@ -520,7 +519,7 @@ void create_lights() noexcept
             cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SPECULAR], cube_mat.specular);
             cube_gl._base_gl._prog.set_uniform(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::MAT_SHININESS], cube_mat.shininess);
 
-            cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POSITION], glm::value_ptr(light_pos));
+            cube_gl._base_gl._prog.set_uniform_vec<4>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_POSITION], glm::value_ptr(light_pos));
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_AMBIENT], glm::value_ptr(light_mat.ambient));
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_DIFFUSE], glm::value_ptr(light_mat.diffuse));
             cube_gl._base_gl._prog.set_uniform_vec<3>(cube_uniforms[(int)CUBE_OBJ_UNIFORMS::LIGHT_SPECULAR], glm::value_ptr(light_mat.specular));
@@ -553,14 +552,30 @@ void create_lights() noexcept
             }
             else
             {
+                if (cursor.first >= win.width() - 1 || cursor.second >= win.height() - 1 || cursor.first < 1 || cursor.second < 1) {
+                    last_cursor = glm::vec2{win.width(), win.height()} / 2.0f;
+                    win.set_cursor_pos(last_cursor.x, last_cursor.y);
+                }
+
                 // calculate how far the mouse is from last position
                 glm::vec2 cursor_offset = glm::vec2{cursor.first, cursor.second} - last_cursor;
-                // update last cursor position
-                last_cursor = glm::vec2{cursor.first, cursor.second};
-                // y axis is flipped as y is measured from top to bottom
-                // top of screen is y=0 when we get the cursor position
-                cursor_offset *= glm::vec2{1, -1} * look_sens * dt;
-                dyn_cam.rotate(cursor_offset, world_up);
+
+                // min is to prevent redundant changing of rotation when change is zero
+                constexpr const float cursor_offset_min = 2.0;
+                // max is to prevent weird jerking behaviour when cursor moves between windows
+                constexpr const float cursor_offset_max = 500.0;
+
+                const auto len = glm::length(cursor_offset);
+
+                if (len > cursor_offset_min && len < cursor_offset_max) {
+                    // update last cursor position
+                    last_cursor = glm::vec2{cursor.first, cursor.second};
+                    utils::print_vecs<2>(glm::value_ptr(last_cursor));
+                    // y axis is flipped as y is measured from top to bottom
+                    // top of screen is y=0 when we get the cursor position
+                    cursor_offset *= glm::vec2{1, -1} * look_sens * dt;
+                    dyn_cam.rotate(cursor_offset, world_up);
+                }
             }
         }
 
@@ -623,7 +638,7 @@ void create_lights() noexcept
         {
             // reset cursor position
 
-            glfwSetCursorPos(win.win(), (double)win.width() / 2.0, (double)win.height() / 2.0);
+            win.set_cursor_pos((double)win.width() / 2.0, (double)win.height() / 2.0);
             first_mouse = true;
             
             // reset camera position and fov

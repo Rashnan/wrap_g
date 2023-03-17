@@ -452,6 +452,12 @@ namespace wrap_g
         glfwSetInputMode(m_win, mode, value);
     }
 
+    void window::set_cursor_pos(double x, double y) noexcept
+    {
+        // forward the call to glfwSetCursorPos to set the cursor position
+        glfwSetCursorPos(m_win, x, y);
+    }
+
     void window::set_should_close(bool close) noexcept
     {
         // set the window should close parameter
@@ -480,6 +486,30 @@ namespace wrap_g
         // set to 0 for vsync
         glfwSwapInterval(interval);
     }
+
+    void window::poll_events() noexcept
+    {
+        // just calls glfwPollEvents
+        // which is non-blocking
+        glfwPollEvents();
+    }
+
+    void window::wait_events() noexcept
+    {
+        // just calls glfwWaitEvents
+        // which is blocking
+        glfwWaitEvents();
+    }
+    
+    void window::wait_events_timeout(double timeout) noexcept
+    {
+        // just calls glfwWaitEvents
+        // which is blocking
+        // if one or more events are present it is exactly like poll_events
+        // but if none present, then it just waits until the timeout
+        glfwWaitEventsTimeout(timeout);
+    }
+
 
     vertex_array_object window::create_vao() noexcept
     {
