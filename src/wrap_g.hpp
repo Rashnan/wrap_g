@@ -46,6 +46,10 @@
 #define WRAP_G_USE_NEW_OPENGL_DEBUG_MESSAGE_CONTROL false
 #endif
 
+#define __WRAP_G__OPENGL_VERSION_4_5_PLUS WRAP_G_OPENGL_VERSION_MAJOR > 4 || (WRAP_G_OPENGL_VERSION_MAJOR == 4 && WRAP_G_OPENGL_VERSION_MINOR >= 5)
+#define __WRAP_G__OPENGL_VERSION_4_3_PLUS WRAP_G_OPENGL_VERSION_MAJOR > 4 || (WRAP_G_OPENGL_VERSION_MAJOR == 4 && WRAP_G_OPENGL_VERSION_MINOR >= 3)
+// #define __WRAP_G__OPENGL_VERSION_3_3_PLUS WRAP_G_OPENGL_VERSION_MAJOR > 3 || (WRAP_G_OPENGL_VERSION_MAJOR == 3 && WRAP_G_OPENGL_VERSION_MINOR >= 3)
+
 ////
 // Imports
 
@@ -487,6 +491,7 @@ namespace wrap_g
     public:
         [[nodiscard]] inline constexpr GLuint id() const noexcept { return m_id; }
 
+#if __WRAP_G__OPENGL_VERSION_4_3_PLUS
         /**
          * @brief Create an array buffer object.
          *
@@ -526,6 +531,7 @@ namespace wrap_g
         template <typename Wrapper>
         void create_array_buffer(GLuint binding_index, GLsizeiptr buffer_size, Wrapper *data, GLsizei stride, GLbitfield flags, GLintptr offset) noexcept;
 
+#if __WRAP_G__OPENGL_VERSION_4_5_PLUS
         /**
          * @brief Create a element buffer object.
          *
@@ -539,6 +545,7 @@ namespace wrap_g
          */
         template <typename Wrapper>
         void create_element_buffer(GLsizeiptr buffer_size, Wrapper *data, GLbitfield flags) noexcept;
+#endif
 
         /**
          * @brief Define an attribute which will bebound to a speciic location and used within a shader.
@@ -553,7 +560,9 @@ namespace wrap_g
          * is 0 and for color is 3 * sizeof(float).
          */
         void define_attrib(GLuint binding_index, GLuint attrib_index, GLint count, GLenum data_type, bool normalised = false, GLuint relative_offset = 0) noexcept;
-
+#else
+        // TODO:
+#endif
         /**
          * @brief Bind the vao. The vao must be bound before using it for draw calls.
          *
@@ -829,6 +838,7 @@ namespace wrap_g
         requires std::is_integral_v<T> || std::is_floating_point_v<T>
         void set_param_vec(GLenum param, const T *arr) noexcept;
 
+#if __WRAP_G__OPENGL_VERSION_4_3_PLUS
         /**
          * @brief Allocate the storage within the gpu to store a 2d image. This allocated storage cannot
          * be changed.
@@ -856,6 +866,7 @@ namespace wrap_g
          * @param pixels A pointer to the image data.
          */
         void sub_image2d(GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels) noexcept;
+#endif
 
         /**
          * @brief Create mipmaps for the texture.
