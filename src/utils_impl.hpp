@@ -1185,11 +1185,11 @@ namespace utils
     consteval glm::vec4 hex(std::string_view&& code) noexcept
     {
         // const hex size
-        // #RRGGBB
-        // TODO add alpha #rrggbbaa
-        // TODO add 3&4 size #rgba or #rgb
+        // #RRGGBB --> 7
+        // #RRGGBBAA --> 9
+        // #RGBA or #RGB -- > 5 or 4
 
-        if (code.size() != 7)
+        if (code.size() > 9)
         {
             // * Compile time detects and prevents compile if this line is reached.
             // ? For use if funciton is converted to constexpr
@@ -1212,12 +1212,21 @@ namespace utils
             }
             return 0;
         };
-
-        return glm::vec4{
-            (heximal(code[2]) + heximal(code[1]) * 16.0)/255.0,
-            (heximal(code[4]) + heximal(code[3]) * 16.0)/255.0,
-            (heximal(code[6]) + heximal(code[5]) * 16.0)/255.0,
-        1.0};
+        
+        return code.size() > 5 ?
+                    glm::vec4{
+                        (heximal(code[2]) + heximal(code[1]) * 16.0) / 255.0,
+                        (heximal(code[4]) + heximal(code[3]) * 16.0) / 255.0,
+                        (heximal(code[6]) + heximal(code[5]) * 16.0) / 255.0,
+                        code.size() > 7 ? (heximal(code[8]) + heximal(code[7]) * 16.0) / 255.0 : 1.0,
+                    }
+                    :
+                    glm::vec4{
+                        ((heximal(code[1]) + heximal(code[1])) * 16.0) / 255.0,
+                        ((heximal(code[2]) + heximal(code[2])) * 16.0) / 255.0,
+                        ((heximal(code[3]) + heximal(code[3])) * 16.0) / 255.0,
+                        code.size() > 4 ? (heximal(code[4]) + heximal(code[4]) * 16.0) / 255.0 : 1.0,
+                    };
     }
 
     template <size_t rows, size_t cols, typename T>
