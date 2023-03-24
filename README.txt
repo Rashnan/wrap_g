@@ -10,8 +10,5 @@ TOODS:
 3. Change references to const char * to also allow std::string_view and convertibles to it.
 4. Utils hex should allow #aaa and such and #rrggbbaa and such
 
-?. Make compatible with opengl 3.3 & 4.3 (current only for 4.5+)
-?. Make compatible with c++17 (lowest c++14 not sure if possible)
-
 MAYBES:
 ?. Use filesystem api to get filenames for test shaders
