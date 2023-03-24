@@ -2,8 +2,8 @@
 #include <iostream>
 #include <future>
 
-#define WRAP_G_OPENGL_VERSION_MAJOR 4
-#define WRAP_G_OPENGL_VERSION_MINOR 6
+#define WRAP_G_OPENGL_VERSION_MAJOR 3
+#define WRAP_G_OPENGL_VERSION_MINOR 3
 #define WRAP_G_BACKGROUND_RESOURCE_LOAD true
 #define WRAP_G_DEBUG true
 

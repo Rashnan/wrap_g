@@ -46,8 +46,12 @@
 #define WRAP_G_USE_NEW_OPENGL_DEBUG_MESSAGE_CONTROL false
 #endif
 
+// version checks
+
+// * 4.3+ largely changes functions
 #define __WRAP_G__OPENGL_VERSION_4_5_PLUS WRAP_G_OPENGL_VERSION_MAJOR > 4 || (WRAP_G_OPENGL_VERSION_MAJOR == 4 && WRAP_G_OPENGL_VERSION_MINOR >= 5)
 #define __WRAP_G__OPENGL_VERSION_4_3_PLUS WRAP_G_OPENGL_VERSION_MAJOR > 4 || (WRAP_G_OPENGL_VERSION_MAJOR == 4 && WRAP_G_OPENGL_VERSION_MINOR >= 3)
+#define __WRAP_G__OPENGL_VERSION_4_2_PLUS WRAP_G_OPENGL_VERSION_MAJOR > 4 || (WRAP_G_OPENGL_VERSION_MAJOR == 4 && WRAP_G_OPENGL_VERSION_MINOR >= 2)
 // #define __WRAP_G__OPENGL_VERSION_3_3_PLUS WRAP_G_OPENGL_VERSION_MAJOR > 3 || (WRAP_G_OPENGL_VERSION_MAJOR == 3 && WRAP_G_OPENGL_VERSION_MINOR >= 3)
 
 ////
@@ -545,6 +549,9 @@ namespace wrap_g
          */
         template <typename Wrapper>
         void create_element_buffer(GLsizeiptr buffer_size, Wrapper *data, GLbitfield flags) noexcept;
+#else
+        template <typename Wrapper>
+        void create_element_buffer(GLsizeiptr buffer_size, Wrapper *data, GLenum usage) noexcept;
 #endif
 
         /**
@@ -561,8 +568,13 @@ namespace wrap_g
          */
         void define_attrib(GLuint binding_index, GLuint attrib_index, GLint count, GLenum data_type, bool normalised = false, GLuint relative_offset = 0) noexcept;
 #else
-        // TODO:
+        template <typename Wrapper>
+        void create_array_buffer(GLsizeiptr buffer_size, Wrapper *data, GLenum usage) noexcept;
+
+        template <typename Wrapper>
+        void define_attrib(GLuint attrib_index, GLint count, GLenum data_type, bool normalised = false, GLuint relative_offset = 0) noexcept;
 #endif
+
         /**
          * @brief Bind the vao. The vao must be bound before using it for draw calls.
          *
@@ -838,7 +850,7 @@ namespace wrap_g
         requires std::is_integral_v<T> || std::is_floating_point_v<T>
         void set_param_vec(GLenum param, const T *arr) noexcept;
 
-#if __WRAP_G__OPENGL_VERSION_4_3_PLUS
+#if __WRAP_G__OPENGL_VERSION_4_2_PLUS
         /**
          * @brief Allocate the storage within the gpu to store a 2d image. This allocated storage cannot
          * be changed.
@@ -850,10 +862,13 @@ namespace wrap_g
          * @param width The width of the texture.
          * @param height the height of the texture.
          */
-        void define_texture2d(size_t levels, GLenum internal_format, size_t width, size_t height) noexcept;
+        void define_storage2d(size_t levels, GLenum internal_format, size_t width, size_t height) noexcept;
+#else
+        void define_storage2d(GLint level, GLint internal_format, GLsizei width, GLsizei height, GLenum format, GLenum type, void *data = 0) noexcept;
+#endif
 
         /**
-         * @brief Assign data to a block of data alloacted on the gpu with define_texture2d. This function
+         * @brief Assign data to a block of data alloacted on the gpu with define_storage2d. This function
          * must be used to set the image data.
          *
          * @param level The level of the image.
@@ -866,7 +881,6 @@ namespace wrap_g
          * @param pixels A pointer to the image data.
          */
         void sub_image2d(GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels) noexcept;
-#endif
 
         /**
          * @brief Create mipmaps for the texture.

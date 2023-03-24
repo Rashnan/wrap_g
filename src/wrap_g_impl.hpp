@@ -708,11 +708,35 @@ namespace wrap_g
         __graphics.out() << "[wrap_g] Debug: Created VAO #" << m_id << " element buffer #" << buffer_id << ".\n";
 #endif
     }
-#endif
 #else
-    // TODO:
-#endif
+    template <typename Wrapper>
+    void vertex_array_object::create_element_buffer(GLsizeiptr buffer_size, Wrapper *data, GLenum usage) noexcept
+    {
+        GLuint buffer_id = 0;
 
+        // get a buffer id from the opengl state
+        // this is how old versions used to get buffers
+        glGenBuffers(1, &buffer_id);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer_id);
+        
+        // make sure the id is valid
+        if (buffer_id == 0)
+        {
+            __graphics.out() << "[wrap_g] Error: Failed to create VAO #" << m_id << " element buffer.\n";
+            return;
+        }
+        
+        // set buffer storage using currently bound GL_ARRAY_BUFFER
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, data, usage);
+
+        // set the element buffer id
+        m_element_buffer_id = buffer_id;
+
+#if WRAP_G_DEBUG
+        __graphics.out() << "[wrap_g] Debug: Created VAO #" << m_id << " element buffer #" << buffer_id << ".\n";
+#endif
+    }
+#endif
     void vertex_array_object::define_attrib(GLuint binding_index, GLuint attrib_index, GLint count, GLenum data_type, bool normalised, GLuint relative_offset) noexcept
     {
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
@@ -730,7 +754,7 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
             glVertexArrayAttribIFormat(m_id, attrib_index, count, data_type, relative_offset);
 #else
-            glVertexAttribFormat(attrib_index, count, data_type, relative_offset);
+            glVertexAttribIFormat(attrib_index, count, data_type, relative_offset);
 #endif
         }
         
@@ -749,7 +773,7 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
         glVertexArrayAttribFormat(m_id, attrib_index, count, data_type, normalised, relative_offset);
 #else
-        glVertexAttribFormat(attrib_index, count, data_type, relative_offset);
+        glVertexAttribFormat(attrib_index, count, data_type, normalised, relative_offset);
 #endif
         
         // identify which buffer has a binding index that contains this attribute
@@ -766,6 +790,54 @@ namespace wrap_g
 #endif
     }
 
+#else
+
+    template <typename Wrapper>
+    void vertex_array_object::create_array_buffer(GLsizeiptr buffer_size, Wrapper *data, GLenum usage) noexcept
+    {
+        GLuint buffer_id = 0;
+
+        // get a buffer id from the opengl state
+        // this is how old versions used to get buffers
+        glGenBuffers(1, &buffer_id);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
+        
+        // make sure the id is valid
+        if (buffer_id == 0)
+        {
+            __graphics.out() << "[wrap_g] Error: Failed to create VAO #" << m_id << " array buffer.\n";
+            return;
+        }
+        
+        // set buffer storage using currently bound GL_ARRAY_BUFFER
+        glBufferData(GL_ARRAY_BUFFER, buffer_size, data, usage);
+
+        // add the binding index to the array buffer index list
+        m_array_buffers.insert_or_assign(m_array_buffers.size(), array_buffer{buffer_id, sizeof(Wrapper)});
+
+#if WRAP_G_DEBUG
+        __graphics.out() << "[wrap_g] Debug: Created VAO #" << m_id << " array buffer #" << buffer_id << ".\n";
+#endif
+    }
+    
+    template <typename Wrapper>
+    void vertex_array_object::define_attrib(GLuint attrib_index, GLint count, GLenum data_type, bool normalised, GLuint relative_offset) noexcept
+    {
+        // enable the attribute in the currently bounded vertex array object
+        glEnableVertexAttribArray(attrib_index);
+        
+        // check if data is one of the int types
+        if (utils::one_of<GLenum>(data_type, {GL_BYTE, GL_SHORT, GL_INT, GL_FIXED, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, GL_INT_2_10_10_10_REV, GL_UNSIGNED_INT_10_10_10_2, GL_UNSIGNED_INT_10F_11F_11F_REV}))
+        {
+            // declare the data contained within the attribute
+            glVertexAttribIPointer(attrib_index, count, data_type, sizeof(Wrapper), (const void *)(intptr_t)relative_offset);
+        }
+
+        // declare the data contained within the attribute
+        glVertexAttribPointer(attrib_index, count, data_type, normalised, sizeof(Wrapper), (const void *)(intptr_t)relative_offset);
+    }
+
+#endif
     void vertex_array_object::bind() const noexcept
     {
         // bind this vertex array to the current context
@@ -1248,8 +1320,8 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
         glBindTextureUnit(texture_unit, m_id);
 #else
+        glActiveTexture(GL_TEXTURE0 + texture_unit);
         glBindTexture(m_target, m_id);
-        glBindTextureUnit(GL_TEXTURE0 + texture_unit, m_target);
 #endif
     }
 
@@ -1290,7 +1362,7 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
             glTextureParameterIuiv(m_id, param, arr);
 #else
-            glTexParameterIuiv(m_target, param, val);
+            glTexParameterIuiv(m_target, param, arr);
 #endif
 
         // set the texture parameter for integers
@@ -1302,7 +1374,7 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
                 glTextureParameterIiv(m_id, param, arr);
 #else
-                glTexParameterIiv(m_target, param, val);
+                glTexParameterIiv(m_target, param, arr);
 #endif
             }
             else
@@ -1311,7 +1383,7 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
                 glTextureParameteriv(m_id, param, arr);
 #else
-                glTexParameteriv(m_target, param, val);
+                glTexParameteriv(m_target, param, arr);
 #endif
             }
         }
@@ -1322,13 +1394,13 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
             glTextureParameterfv(m_id, param, arr);
 #else
-            glTexParameterfv(m_target, param, val);
+            glTexParameterfv(m_target, param, arr);
 #endif
         }
     }
 
 #if __WRAP_G__OPENGL_VERSION_4_3_PLUS
-    void texture::define_texture2d(size_t levels, GLenum internal_format, size_t width, size_t height) noexcept
+    void texture::define_storage2d(size_t levels, GLenum internal_format, size_t width, size_t height) noexcept
     {
         // create immovable storage for a 2d texture
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
@@ -1337,9 +1409,13 @@ namespace wrap_g
         glTexStorage2D(m_target, levels, internal_format, width, height);
 #endif
     }
+#else
+    void texture::define_storage2d(GLint level, GLint internal_format, GLsizei width, GLsizei height, GLenum format, GLenum type, void *data) noexcept
+    {
+        glTexImage2D(m_target, level, internal_format, width, height, 0, format, type, data);
+    }
 #endif
 
-#if __WRAP_G__OPENGL_VERSION_4_3_PLUS
     void texture::sub_image2d(GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels) noexcept
     {
 #if __WRAP_G__OPENGL_VERSION_4_5_PLUS
@@ -1349,7 +1425,6 @@ namespace wrap_g
         glTexSubImage2D(m_target, level, xoffset, yoffset, width, height, format, type, pixels);
 #endif
     }
-#endif
 
     void texture::gen_mipmap() noexcept
     {
