@@ -161,7 +161,10 @@ void create_triangle() noexcept
     // in practice use uniform_locations or uniform_location to store location of uniforms
     // at initialization for readily changing uniforms
     prog.set_uniform_vec<4>(prog.uniform_location("col"), glm::value_ptr(yellow));
+
+#if WRAP_G_DEBUG
     std::cout << "[main] Debug: Starting code time elapsed: " << watch.stop() << " ms \n";
+#endif
 
 #if WRAP_G_DEBUG
     utils::metrics tracker;
