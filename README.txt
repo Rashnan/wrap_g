@@ -8,7 +8,6 @@ TOODS:
 1. Change utils functions that generate 2d coords to gen pseudo-2d in 3d coords and compare performance.
 2. Auto-change sens variables based on fps.
 3. Change references to const char * to also allow std::string_view and convertibles to it.
-4. Utils hex should allow #aaa and such and #rrggbbaa and such
 
 MAYBES:
 ?. Use filesystem api to get filenames for test shaders
