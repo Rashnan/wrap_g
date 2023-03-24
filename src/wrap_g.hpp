@@ -18,13 +18,17 @@
 
 // the opengl version to build wrap_g for
 // the default version is 4.6
-// min supported version will be 3.3
+// min supported version is 4.5
+// * pain to support 4.4-3.3 with their annoying functionality
+// * a lot of functions end up having to look different
+// ! if lower version set but on hardware that supports higher version
+// ! code will run without issue
 #ifndef WRAP_G_OPENGL_VERSION_MAJOR
 #define WRAP_G_OPENGL_VERSION_MAJOR 4
 #endif
 
 #ifndef WRAP_G_OPENGL_VERSION_MINOR
-#define WRAP_G_OPENGL_VERSION_MINOR 6
+#define WRAP_G_OPENGL_VERSION_MINOR 5
 #endif
 
 // whether background resource loading threads should be used
