@@ -568,9 +568,32 @@ namespace wrap_g
          */
         void define_attrib(GLuint binding_index, GLuint attrib_index, GLint count, GLenum data_type, bool normalised = false, GLuint relative_offset = 0) noexcept;
 #else
+        /**
+         * @brief Create a array buffer object.
+         * 
+         * @tparam Wrapper The Wrapper container which contains all the data for each vertex.
+         * @param buffer_size The total size of the buffer in bytes.
+         * @param data The pointer to the underlying data of the buffer.
+         * @param usage The intended usage of the buffer. Must be one of GL_STREAM_DRAW, GL_STREAM_READ,
+         * GL_STREAM_COPY, GL_STATIC_DRAW, GL_STATIC_READ, GL_STATIC_COPY, GL_DYNAMIC_DRAW, GL_DYNAMIC_READ
+         * or GL_DYNAMIC_COPY.
+         */
         template <typename Wrapper>
         void create_array_buffer(GLsizeiptr buffer_size, Wrapper *data, GLenum usage) noexcept;
 
+        /**
+         * @brief Define an attribute which will bebound to a speciic location and used within a shader.
+         *
+         * @tparam Wrapper The Wrapper container which contains all the data for each vertex. This is used to
+         * calculate the stride which is used in glVertexAttribPointer.
+         * @param attrib_index The index of the attribute.
+         * @param count The number of items of data for each vertex. (3 floats for position so count is 3.)
+         * @param data_type The data type of the data. (3 float for position so data type is GL_FLOAT.)
+         * @param normalised Whether the data should be normalised.
+         * @param relative_offset The relative offset at which the attribute data is located. Ex: a
+         * wrapper containing 3 floats for position and 3 floats for color, the relative offset for position
+         * is 0 and for color is 3 * sizeof(float).
+         */
         template <typename Wrapper>
         void define_attrib(GLuint attrib_index, GLint count, GLenum data_type, bool normalised = false, GLuint relative_offset = 0) noexcept;
 #endif
@@ -853,17 +876,37 @@ namespace wrap_g
 #if __WRAP_G__OPENGL_VERSION_4_2_PLUS
         /**
          * @brief Allocate the storage within the gpu to store a 2d image. This allocated storage cannot
-         * be changed.
+         * be changed. Uses glTexStorage2D.
          *
          * @param levels The maximum amount of levels.
          * @param internal_format The internal format of data. Ex: GL_RGBA4 to use 4 bytes to store red
          * green and blue each. Refer to https://docs.gl/gl4/glTexStorage2D
          * 
          * @param width The width of the texture.
-         * @param height the height of the texture.
+         * @param height The height of the texture.
          */
         void define_storage2d(size_t levels, GLenum internal_format, size_t width, size_t height) noexcept;
 #else
+        /**
+         * @brief Allocate the storage within the gpu to store a 2d image. This allocated storage CAN
+         * be changed. Uses glTexImage2D.
+         * 
+         * @param level The level.
+         * @param internal_format The internal format of data. Ex: GL_RGBA4 to use 4 bytes to store red
+         * green and blue each. Refer to https://docs.gl/gl4/glTexStorage2D
+         * @param width The width of the texture.
+         * @param height The height of the texture.
+         * @param format The format of the image. Must be one of GL_RED, GL_RG, GL_RGB, GL_BGR, GL_RGBA, GL_BGRA, GL_RED_INTEGER,
+         * GL_RG_INTEGER, GL_RGB_INTEGER, GL_BGR_INTEGER, GL_RGBA_INTEGER, GL_BGRA_INTEGER,
+         * GL_STENCIL_INDEX, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL.
+         * @param type Must be one of GL_UNSIGNED_BYTE, GL_BYTE, GL_UNSIGNED_SHORT, GL_SHORT,
+         * GL_UNSIGNED_INT, GL_INT, GL_FLOAT, GL_UNSIGNED_BYTE_3_3_2, GL_UNSIGNED_BYTE_2_3_3_REV,
+         * GL_UNSIGNED_SHORT_5_6_5, GL_UNSIGNED_SHORT_5_6_5_REV, GL_UNSIGNED_SHORT_4_4_4_4,
+         * GL_UNSIGNED_SHORT_4_4_4_4_REV, GL_UNSIGNED_SHORT_5_5_5_1, GL_UNSIGNED_SHORT_1_5_5_5_REV,
+         * GL_UNSIGNED_INT_8_8_8_8, GL_UNSIGNED_INT_8_8_8_8_REV, GL_UNSIGNED_INT_10_10_10_2,
+         * and GL_UNSIGNED_INT_2_10_10_10_REV
+         * @param data A pointer to the data tp be stored in memory.
+         */
         void define_storage2d(GLint level, GLint internal_format, GLsizei width, GLsizei height, GLenum format, GLenum type, void *data = 0) noexcept;
 #endif
 
@@ -876,8 +919,14 @@ namespace wrap_g
          * @param yoffset The y offset.
          * @param width The width of the image.
          * @param height The height of the image.
-         * @param format The format of the image.
-         * @param type The data type of the image data. Ex: GL_UNSIGNED_BYTE
+         * @param format The format of the image. Must be one of GL_RED, GL_RG, GL_RGB, GL_BGR, GL_RGBA,
+         * GL_BGRA, GL_DEPTH_COMPONENT, and GL_STENCIL_INDEX.
+         * @param type The data type of the image data. Must be one of GL_UNSIGNED_BYTE, GL_BYTE, 
+         * L_UNSIGNED_SHORT, GL_SHORT, GL_UNSIGNED_INT, GL_INT, GL_FLOAT, GL_UNSIGNED_BYTE_3_3_2,
+         * GL_UNSIGNED_BYTE_2_3_3_REV, GL_UNSIGNED_SHORT_5_6_5, GL_UNSIGNED_SHORT_5_6_5_REV,
+         * GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_4_4_4_4_REV, GL_UNSIGNED_SHORT_5_5_5_1,
+         * GL_UNSIGNED_SHORT_1_5_5_5_REV, GL_UNSIGNED_INT_8_8_8_8, GL_UNSIGNED_INT_8_8_8_8_REV,
+         * GL_UNSIGNED_INT_10_10_10_2, and GL_UNSIGNED_INT_2_10_10_10_REV
          * @param pixels A pointer to the image data.
          */
         void sub_image2d(GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels) noexcept;
