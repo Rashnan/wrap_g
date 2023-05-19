@@ -4,19 +4,19 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "C:\\ProgramData\\chocolatey\\lib\\mingw\\tools\\install\\mingw64\\include\\c++\\11.2.0\\**"
+                "C:\\mingw64\\include\\c++\\13.1.0"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
-            "cStandard": "c17",
-            "cppStandard": "gnu++20",
+            "cStandard": "c23",
+            "cppStandard": "gnu++23",
             "intelliSenseMode": "gcc-x64",
-            "compilerPath": "C:\\ProgramData\\chocolatey\\lib\\mingw\\tools\\install\\mingw64\\bin\\g++.exe",
+            "compilerPath": "C:\\mingw64\\bin\\g++.exe",
             "compilerArgs": [
-                "-std=c++2a",
+                "-std=c++2b",
                 "-Wextra",
                 "-Wall"
             ]

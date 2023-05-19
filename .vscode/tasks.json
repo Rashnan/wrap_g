@@ -14,7 +14,7 @@
                 // "-fcoroutines",
                 // "-fconcepts",
                 // "-fconcepts-diagnostics-depth=2",
-                "-std=c++2a",
+                "-std=c++2b",
                 "index.cpp",
                 "-o",
                 "index.exe",

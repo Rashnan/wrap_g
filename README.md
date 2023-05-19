@@ -11,3 +11,5 @@ TOODS:
 
 MAYBES:
 ?. Use filesystem api to get filenames for test shaders
+
+# Getting Started
