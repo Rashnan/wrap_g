@@ -983,7 +983,7 @@ namespace utils
         });
     }
 
-    template<typename DurationUnit = timer::ms, typename Fn>
+    template<typename DurationUnit, typename Fn>
     requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
             && std::is_invocable_v<Fn>
     void set_timeout(int timeout, Fn&& fn) noexcept
@@ -994,7 +994,7 @@ namespace utils
         fn();
     }
 
-    template<typename DurationUnit = timer::ms, typename Fn>
+    template<typename DurationUnit, typename Fn>
     requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
             && std::is_invocable_v<Fn, bool&>
     void set_interval(int interval, Fn&& fn) noexcept
@@ -1013,7 +1013,7 @@ namespace utils
         }
     }
     
-    template<typename DurationUnit = timer::ms, typename Fn>
+    template<typename DurationUnit, typename Fn>
     requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
             && std::is_invocable_v<Fn>
     [[nodiscard]] std::future<void> set_timeout_async(int timeout, Fn&& fn) noexcept
@@ -1025,7 +1025,7 @@ namespace utils
         });
     }
 
-    template<typename DurationUnit = timer::ms, typename Fn>
+    template<typename DurationUnit, typename Fn>
     requires is_one_of<DurationUnit, timer::y, timer::m, timer::d, timer::hr, timer::min, timer::s, timer::ms, timer::us, timer::ns>
             && std::is_invocable_v<Fn, bool&>
     [[nodiscard]] std::future<void> set_interval_async(int interval, Fn&& fn) noexcept
